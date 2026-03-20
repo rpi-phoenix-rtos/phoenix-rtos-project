@@ -20,6 +20,5 @@
 #define PL011_TTY_BASE  0xfe201000u
 #define PL011_TTY_CLOCK 48000000u
 #define DTB_FORCE_PHYS_TIMER 1
-#define TIMER_IRQ_GROUP 0U
 
 #endif

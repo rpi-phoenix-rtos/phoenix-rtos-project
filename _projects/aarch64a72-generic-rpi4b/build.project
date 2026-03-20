@@ -10,6 +10,7 @@
 RPI4B_DTB_IMG="bcm2711-rpi-4-b.dtb"
 RPI4B_DTB_SRC=""
 RPI4B_FIRMWARE_DIR="${RPI4B_FIRMWARE_DIR:-}"
+RPI4B_QEMU_MEMORY_SIZE="${RPI4B_QEMU_MEMORY_SIZE:-}"
 
 if [ -n "${RPI4B_DTB_PATH:-}" ]; then
 	RPI4B_DTB_SRC="${RPI4B_DTB_PATH}"
@@ -30,12 +31,37 @@ else
 fi
 
 
+rpi4b_stageDtb() {
+	local dst="$1"
+
+	if [ -z "${RPI4B_DTB_SRC}" ]; then
+		return 0
+	fi
+
+	cp -a "${RPI4B_DTB_SRC}" "${dst}"
+
+	if [ -n "${RPI4B_QEMU_MEMORY_SIZE}" ]; then
+		if ! command -v fdtput >/dev/null 2>&1; then
+			b_log "RPI4B_QEMU_MEMORY_SIZE requires fdtput in PATH"
+			return 1
+		fi
+
+		if ! fdtput -t x "${dst}" /memory@0 reg 0 0 "${RPI4B_QEMU_MEMORY_SIZE}"; then
+			b_log "Failed to apply Pi 4 QEMU-only memory patch to ${dst}"
+			return 1
+		fi
+	fi
+}
+
+
 b_build_project() {
 	local rootfs_dtb="${PREFIX_ROOTFS}/etc/system.dtb"
 
 	if [ -n "${RPI4B_DTB_SRC}" ]; then
 		mkdir -p "${PREFIX_ROOTFS}/etc"
-		cp -a "${RPI4B_DTB_SRC}" "${rootfs_dtb}"
+		if ! rpi4b_stageDtb "${rootfs_dtb}"; then
+			return 1
+		fi
 	else
 		rm -f "${rootfs_dtb}"
 	fi
@@ -101,7 +127,9 @@ b_image_project() {
 	fi
 
 	if [ -n "${RPI4B_DTB_SRC}" ]; then
-		cp -a "${RPI4B_DTB_SRC}" "${bootdir}/${RPI4B_DTB_IMG}"
+		if ! rpi4b_stageDtb "${bootdir}/${RPI4B_DTB_IMG}"; then
+			return 1
+		fi
 	fi
 
 	b_log "The images have been built for the ${TARGET} platform"

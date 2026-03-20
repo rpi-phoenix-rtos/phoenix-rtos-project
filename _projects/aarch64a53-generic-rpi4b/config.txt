@@ -1,0 +1,11 @@
+# Phoenix-RTOS Raspberry Pi 4 early bring-up
+#
+# This is only the first firmware-facing staging config.
+# DTB staging and firmware-handoff support are still incomplete.
+
+arm_64bit=1
+kernel=kernel8.img
+kernel_address=0x40080000
+boot_load_flags=0x1
+enable_uart=1
+uart_2ndstage=1

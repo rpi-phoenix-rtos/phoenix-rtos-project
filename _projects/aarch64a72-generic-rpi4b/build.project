@@ -1,0 +1,108 @@
+#!/bin/bash
+#
+# Shell script for building aarch64a72-generic-rpi4b project
+#
+# Copyright 2026 Phoenix Systems
+#
+
+[ "${BASH_SOURCE[0]}" -ef "$0" ] && echo "You should source this script, not execute it!" && exit 1
+
+RPI4B_DTB_IMG="bcm2711-rpi-4-b.dtb"
+RPI4B_DTB_SRC=""
+RPI4B_FIRMWARE_DIR="${RPI4B_FIRMWARE_DIR:-}"
+
+if [ -n "${RPI4B_DTB_PATH:-}" ]; then
+	RPI4B_DTB_SRC="${RPI4B_DTB_PATH}"
+elif [ -f "${PROJECT_PATH}/${RPI4B_DTB_IMG}" ]; then
+	RPI4B_DTB_SRC="${PROJECT_PATH}/${RPI4B_DTB_IMG}"
+fi
+
+if [ -n "${RPI4B_FIRMWARE_DIR:-}" ]; then
+	RPI4B_FIRMWARE_DIR="${RPI4B_FIRMWARE_DIR}"
+elif [ -d "${PROJECT_PATH}/firmware" ]; then
+	RPI4B_FIRMWARE_DIR="${PROJECT_PATH}/firmware"
+fi
+
+if [ -n "${RPI4B_DTB_SRC}" ]; then
+	export RPI4B_HAVE_DTB=1
+else
+	unset RPI4B_HAVE_DTB
+fi
+
+
+b_build_project() {
+	local rootfs_dtb="${PREFIX_ROOTFS}/etc/system.dtb"
+
+	if [ -n "${RPI4B_DTB_SRC}" ]; then
+		mkdir -p "${PREFIX_ROOTFS}/etc"
+		cp -a "${RPI4B_DTB_SRC}" "${rootfs_dtb}"
+	else
+		rm -f "${rootfs_dtb}"
+	fi
+}
+
+
+rpi4b_stageFirmware() {
+	local bootdir="$1"
+	local file=""
+	local required=(
+		start4.elf
+		fixup4.dat
+	)
+	local optional=(
+		start4db.elf
+		fixup4db.dat
+		start4cd.elf
+		fixup4cd.dat
+	)
+
+	if [ -z "${RPI4B_FIRMWARE_DIR}" ]; then
+		return 0
+	fi
+
+	for file in "${required[@]}"; do
+		if [ ! -f "${RPI4B_FIRMWARE_DIR}/${file}" ]; then
+			b_log "Pi 4 firmware dir is missing required file ${file}"
+			return 1
+		fi
+
+		cp -a "${RPI4B_FIRMWARE_DIR}/${file}" "${bootdir}/${file}"
+	done
+
+	for file in "${optional[@]}"; do
+		if [ -f "${RPI4B_FIRMWARE_DIR}/${file}" ]; then
+			cp -a "${RPI4B_FIRMWARE_DIR}/${file}" "${bootdir}/${file}"
+		fi
+	done
+}
+
+
+b_image_project() {
+	local bootdir="${PREFIX_BOOT}/rpi4b"
+	local plo_img="${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img"
+	local loader_img="${PREFIX_BOOT}/loader.disk"
+	local loader_size=""
+	local ram_bank_size=$((0x08000000))
+
+	mkdir -p "${bootdir}"
+
+	cp -a "${PROJECT_PATH}/config.txt" "${bootdir}/config.txt"
+	cp -a "${plo_img}" "${bootdir}/kernel8.img"
+	cp -a "${loader_img}" "${bootdir}/loader.disk"
+
+	if ! rpi4b_stageFirmware "${bootdir}"; then
+		return 1
+	fi
+
+	loader_size=$(wc -c < "${loader_img}")
+	if [ "${loader_size}" -gt "${ram_bank_size}" ]; then
+		b_log "loader.disk (${loader_size} bytes) exceeds generic plo RAM window (${ram_bank_size} bytes)"
+		return 1
+	fi
+
+	if [ -n "${RPI4B_DTB_SRC}" ]; then
+		cp -a "${RPI4B_DTB_SRC}" "${bootdir}/${RPI4B_DTB_IMG}"
+	fi
+
+	b_log "The images have been built for the ${TARGET} platform"
+}

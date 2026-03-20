@@ -7,10 +7,16 @@
 [ "${BASH_SOURCE[0]}" -ef "$0" ] && echo "You should source this script, not execute it!" && exit 1
 
 
+fastlane_stageRootDummyfs() {
+	cp -a "${PREFIX_PROG_STRIPPED}dummyfs" "${PREFIX_PROG_STRIPPED}dummyfs-root"
+}
+
+
 b_build_project() {
 	b_log "Generating generic QEMU DTB"
 
 	mkdir -p "${PREFIX_ROOTFS}/etc"
+	fastlane_stageRootDummyfs
 
 	qemu-system-aarch64 \
 		-machine virt,secure=on,gic-version=2,dumpdtb="${PREFIX_ROOTFS}/etc/system.dtb" \

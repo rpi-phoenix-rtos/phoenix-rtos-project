@@ -4,8 +4,7 @@ is_relative: True
 
 contents:
   - kernel {{ env.BOOT_DEVICE }}
-  - if: '{{ env.RPI4B_HAVE_DTB | default(false) }}'
-    str: blob {{ env.BOOT_DEVICE }} /etc/system.dtb ddr
+  - blob {{ env.BOOT_DEVICE }} /etc/system.dtb ddr
   - app {{ env.BOOT_DEVICE }} -x dummyfs-root ddr ddr
   - app {{ env.BOOT_DEVICE }} -x dummyfs;-N;devfs;-D ddr ddr
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr

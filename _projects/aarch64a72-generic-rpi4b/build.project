@@ -31,6 +31,11 @@ else
 fi
 
 
+fastlane_stageRootDummyfs() {
+	cp -a "${PREFIX_PROG_STRIPPED}dummyfs" "${PREFIX_PROG_STRIPPED}dummyfs-root"
+}
+
+
 rpi4b_stageDtb() {
 	local dst="$1"
 
@@ -56,6 +61,8 @@ rpi4b_stageDtb() {
 
 b_build_project() {
 	local rootfs_dtb="${PREFIX_ROOTFS}/etc/system.dtb"
+
+	fastlane_stageRootDummyfs
 
 	if [ -n "${RPI4B_DTB_SRC}" ]; then
 		mkdir -p "${PREFIX_ROOTFS}/etc"

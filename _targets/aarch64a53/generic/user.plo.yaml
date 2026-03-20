@@ -7,4 +7,5 @@ contents:
   - blob {{ env.BOOT_DEVICE }} /etc/system.dtb ddr
   - app {{ env.BOOT_DEVICE }} -x dummyfs;-N;devfs;-D ddr ddr
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   - go!

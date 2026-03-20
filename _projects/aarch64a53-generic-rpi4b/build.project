@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+# Shell script for building aarch64a53-generic-rpi4b project
+#
+# Copyright 2026 Phoenix Systems
+#
+
+[ "${BASH_SOURCE[0]}" -ef "$0" ] && echo "You should source this script, not execute it!" && exit 1
+
+
+b_image_project() {
+	b_log "The images have been built for the ${TARGET} platform"
+}

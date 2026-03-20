@@ -4,4 +4,5 @@ is_relative: True
 
 contents:
   - kernel {{ env.BOOT_DEVICE }}
+  - blob {{ env.BOOT_DEVICE }} /etc/system.dtb ddr
   - go!

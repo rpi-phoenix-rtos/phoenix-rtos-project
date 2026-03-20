@@ -7,6 +7,20 @@
 [ "${BASH_SOURCE[0]}" -ef "$0" ] && echo "You should source this script, not execute it!" && exit 1
 
 
+b_build_project() {
+	b_log "Generating generic QEMU DTB"
+
+	mkdir -p "${PREFIX_ROOTFS}/etc"
+
+	qemu-system-aarch64 \
+		-machine virt,secure=on,gic-version=2,dumpdtb="${PREFIX_ROOTFS}/etc/system.dtb" \
+		-cpu cortex-a53 \
+		-smp 1 \
+		-m 1G \
+		-display none >/dev/null 2>&1
+}
+
+
 b_image_project() {
 	b_log "The images have been built for the ${TARGET} platform"
 }

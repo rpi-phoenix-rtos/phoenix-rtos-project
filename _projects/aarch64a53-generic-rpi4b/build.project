@@ -11,13 +11,23 @@
 b_image_project() {
 	local bootdir="${PREFIX_BOOT}/rpi4b"
 	local plo_img="${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img"
+	local loader_img="${PREFIX_BOOT}/loader.disk"
 	local dtb_img="bcm2711-rpi-4-b.dtb"
 	local dtb_src=""
+	local loader_size=""
+	local ram_bank_size=$((0x08000000))
 
 	mkdir -p "${bootdir}"
 
 	cp -a "${PROJECT_PATH}/config.txt" "${bootdir}/config.txt"
 	cp -a "${plo_img}" "${bootdir}/kernel8.img"
+	cp -a "${loader_img}" "${bootdir}/loader.disk"
+
+	loader_size=$(wc -c < "${loader_img}")
+	if [ "${loader_size}" -gt "${ram_bank_size}" ]; then
+		b_log "loader.disk (${loader_size} bytes) exceeds generic plo RAM window (${ram_bank_size} bytes)"
+		return 1
+	fi
 
 	if [ -n "${RPI4B_DTB_PATH:-}" ]; then
 		dtb_src="${RPI4B_DTB_PATH}"

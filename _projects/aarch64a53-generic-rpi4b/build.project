@@ -7,13 +7,38 @@
 
 [ "${BASH_SOURCE[0]}" -ef "$0" ] && echo "You should source this script, not execute it!" && exit 1
 
+RPI4B_DTB_IMG="bcm2711-rpi-4-b.dtb"
+RPI4B_DTB_SRC=""
+
+if [ -n "${RPI4B_DTB_PATH:-}" ]; then
+	RPI4B_DTB_SRC="${RPI4B_DTB_PATH}"
+elif [ -f "${PROJECT_PATH}/${RPI4B_DTB_IMG}" ]; then
+	RPI4B_DTB_SRC="${PROJECT_PATH}/${RPI4B_DTB_IMG}"
+fi
+
+if [ -n "${RPI4B_DTB_SRC}" ]; then
+	export RPI4B_HAVE_DTB=1
+else
+	unset RPI4B_HAVE_DTB
+fi
+
+
+b_build_project() {
+	local rootfs_dtb="${PREFIX_ROOTFS}/etc/system.dtb"
+
+	if [ -n "${RPI4B_DTB_SRC}" ]; then
+		mkdir -p "${PREFIX_ROOTFS}/etc"
+		cp -a "${RPI4B_DTB_SRC}" "${rootfs_dtb}"
+	else
+		rm -f "${rootfs_dtb}"
+	fi
+}
+
 
 b_image_project() {
 	local bootdir="${PREFIX_BOOT}/rpi4b"
 	local plo_img="${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img"
 	local loader_img="${PREFIX_BOOT}/loader.disk"
-	local dtb_img="bcm2711-rpi-4-b.dtb"
-	local dtb_src=""
 	local loader_size=""
 	local ram_bank_size=$((0x08000000))
 
@@ -29,14 +54,8 @@ b_image_project() {
 		return 1
 	fi
 
-	if [ -n "${RPI4B_DTB_PATH:-}" ]; then
-		dtb_src="${RPI4B_DTB_PATH}"
-	elif [ -f "${PROJECT_PATH}/${dtb_img}" ]; then
-		dtb_src="${PROJECT_PATH}/${dtb_img}"
-	fi
-
-	if [ -n "${dtb_src}" ]; then
-		cp -a "${dtb_src}" "${bootdir}/${dtb_img}"
+	if [ -n "${RPI4B_DTB_SRC}" ]; then
+		cp -a "${RPI4B_DTB_SRC}" "${bootdir}/${RPI4B_DTB_IMG}"
 	fi
 
 	b_log "The images have been built for the ${TARGET} platform"

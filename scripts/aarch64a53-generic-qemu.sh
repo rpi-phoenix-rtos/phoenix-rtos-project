@@ -20,8 +20,8 @@ exec qemu-system-aarch64 \
 	-cpu cortex-a53 \
 	-smp 1 \
 	-m 1G \
-	-serial null \
 	-serial mon:stdio \
+	-serial null \
 	-display none \
 	-kernel "$IMG_PLO_GENERIC" \
 	-device loader,file="$IMG_LOADER_GENERIC",addr=0x48000000,force-raw=on \

@@ -11,11 +11,23 @@
 b_image_project() {
 	local bootdir="${PREFIX_BOOT}/rpi4b"
 	local plo_img="${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img"
+	local dtb_img="bcm2711-rpi-4-b.dtb"
+	local dtb_src=""
 
 	mkdir -p "${bootdir}"
 
 	cp -a "${PROJECT_PATH}/config.txt" "${bootdir}/config.txt"
 	cp -a "${plo_img}" "${bootdir}/kernel8.img"
+
+	if [ -n "${RPI4B_DTB_PATH:-}" ]; then
+		dtb_src="${RPI4B_DTB_PATH}"
+	elif [ -f "${PROJECT_PATH}/${dtb_img}" ]; then
+		dtb_src="${PROJECT_PATH}/${dtb_img}"
+	fi
+
+	if [ -n "${dtb_src}" ]; then
+		cp -a "${dtb_src}" "${bootdir}/${dtb_img}"
+	fi
 
 	b_log "The images have been built for the ${TARGET} platform"
 }

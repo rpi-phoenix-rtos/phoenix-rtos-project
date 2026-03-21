@@ -25,6 +25,7 @@
 
 #define PL011_TTY_BASE  0xfe201000u
 #define PL011_TTY_CLOCK 48000000u
+#define PL011_TTY_KBD_PATH "/dev/kbd0"
 #define DTB_FORCE_PHYS_TIMER 1
 
 #endif

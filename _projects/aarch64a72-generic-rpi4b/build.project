@@ -36,6 +36,12 @@ fastlane_stageRootDummyfs() {
 }
 
 
+fastlane_stagePshApplets() {
+	cp -a "${PREFIX_PROG_STRIPPED}psh" "${PREFIX_PROG_STRIPPED}mkdir"
+	cp -a "${PREFIX_PROG_STRIPPED}psh" "${PREFIX_PROG_STRIPPED}bind"
+}
+
+
 rpi4b_stageDtb() {
 	local dst="$1"
 
@@ -63,6 +69,7 @@ b_build_project() {
 	local rootfs_dtb="${PREFIX_ROOTFS}/etc/system.dtb"
 
 	fastlane_stageRootDummyfs
+	fastlane_stagePshApplets
 
 	if [ -n "${RPI4B_DTB_SRC}" ]; then
 		mkdir -p "${PREFIX_ROOTFS}/etc"

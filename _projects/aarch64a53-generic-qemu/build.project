@@ -12,11 +12,18 @@ fastlane_stageRootDummyfs() {
 }
 
 
+fastlane_stagePshApplets() {
+	cp -a "${PREFIX_PROG_STRIPPED}psh" "${PREFIX_PROG_STRIPPED}mkdir"
+	cp -a "${PREFIX_PROG_STRIPPED}psh" "${PREFIX_PROG_STRIPPED}bind"
+}
+
+
 b_build_project() {
 	b_log "Generating generic QEMU DTB"
 
 	mkdir -p "${PREFIX_ROOTFS}/etc"
 	fastlane_stageRootDummyfs
+	fastlane_stagePshApplets
 
 	qemu-system-aarch64 \
 		-machine virt,secure=on,gic-version=2,dumpdtb="${PREFIX_ROOTFS}/etc/system.dtb" \

@@ -11,5 +11,6 @@ contents:
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
   - app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
   - app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x pcie ddr ddr
   - app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   - go!

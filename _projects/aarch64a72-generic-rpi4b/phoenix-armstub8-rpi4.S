@@ -36,6 +36,11 @@
 #define LOCAL_PRESCALER 0xff800008
 #define GIC_DISTB       0xff841000
 #define GIC_CPUB        0xff842000
+#define GPIO_GPFSEL4    0xfe200010
+#define GPIO_GPSET1     0xfe200020
+#define GPIO42_SHIFT    6
+#define GPIO42_OUTPUT   (1 << GPIO42_SHIFT)
+#define GPIO42_SET      (1 << 10)
 #define OSC_FREQ        54000000
 
 #define SCR_RW       BIT(10)
@@ -65,6 +70,11 @@
 	.section .text
 	.globl _start
 _start:
+	mrs	x7, mpidr_el1
+	and	x7, x7, #0x3
+	cbnz	x7, 0f
+	bl	gpio42_led_on
+0:
 	mov x0, LOCAL_CONTROL
 	str wzr, [x0]
 	mov w1, 0x80000000
@@ -183,3 +193,18 @@ setup_gic:
 	ret
 
 	.ltorg
+
+
+gpio42_led_on:
+	ldr	x0, =GPIO_GPFSEL4
+	ldr	w1, [x0]
+	mov	w2, #(7 << GPIO42_SHIFT)
+	bic	w1, w1, w2
+	mov	w2, #GPIO42_OUTPUT
+	orr	w1, w1, w2
+	str	w1, [x0]
+
+	ldr	x0, =GPIO_GPSET1
+	mov	w1, #GPIO42_SET
+	str	w1, [x0]
+	ret

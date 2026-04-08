@@ -38,9 +38,11 @@
 #define GIC_CPUB        0xff842000
 #define GPIO_GPFSEL4    0xfe200010
 #define GPIO_GPSET1     0xfe200020
+#define GPIO_GPCLR1     0xfe20002c
 #define GPIO42_SHIFT    6
 #define GPIO42_OUTPUT   (1 << GPIO42_SHIFT)
 #define GPIO42_SET      (1 << 10)
+#define GPIO42_CLR      (1 << 10)
 #define OSC_FREQ        54000000
 
 #define SCR_RW       BIT(10)
@@ -122,6 +124,7 @@ secondary_spin:
 	br	x4
 
 primary_cpu:
+	bl	gpio42_led_off
 	ldr	w4, kernel_entry32
 	ldr	w0, dtb_ptr32
 	mov	x1, #0
@@ -206,5 +209,20 @@ gpio42_led_on:
 
 	ldr	x0, =GPIO_GPSET1
 	mov	w1, #GPIO42_SET
+	str	w1, [x0]
+	ret
+
+
+gpio42_led_off:
+	ldr	x0, =GPIO_GPFSEL4
+	ldr	w1, [x0]
+	mov	w2, #(7 << GPIO42_SHIFT)
+	bic	w1, w1, w2
+	mov	w2, #GPIO42_OUTPUT
+	orr	w1, w1, w2
+	str	w1, [x0]
+
+	ldr	x0, =GPIO_GPCLR1
+	mov	w1, #GPIO42_CLR
 	str	w1, [x0]
 	ret

@@ -32,6 +32,12 @@
 
 #define BIT(x) (1 << (x))
 
+#define LOCAL_CONTROL   0xff800000
+#define LOCAL_PRESCALER 0xff800008
+#define GIC_DISTB       0xff841000
+#define GIC_CPUB        0xff842000
+#define OSC_FREQ        54000000
+
 #define SCR_RW       BIT(10)
 #define SCR_HCE      BIT(8)
 #define SCR_RES1_5   BIT(5)
@@ -50,9 +56,23 @@
 #define SPSR_EL3_VAL \
 	(SPSR_EL3_D | SPSR_EL3_A | SPSR_EL3_I | SPSR_EL3_F | SPSR_EL3_MODE_EL2H)
 
+#define GICC_CTRLR  0x0
+#define GICC_PMR    0x4
+#define GICD_CTRLR  0x0
+#define GICD_IGROUPR 0x80
+#define GIC_IT_NR   0x8
+
 	.section .text
 	.globl _start
 _start:
+	mov x0, LOCAL_CONTROL
+	str wzr, [x0]
+	mov w1, 0x80000000
+	str w1, [x0, #(LOCAL_PRESCALER - LOCAL_CONTROL)]
+
+	ldr x0, =OSC_FREQ
+	msr cntfrq_el0, x0
+
 	msr	cntvoff_el2, xzr
 	mov	x0, #0x3
 	msr	cnthctl_el2, x0
@@ -63,6 +83,8 @@ _start:
 
 	mov	x0, #CPUECTLR_EL1_SMPEN
 	msr	CPUECTLR_EL1, x0
+
+	bl setup_gic
 
 	ldr	x0, =0x30c50830
 	msr	sctlr_el2, x0
@@ -99,6 +121,8 @@ primary_cpu:
 
 	.ltorg
 
+	.org 0xd4
+	.ascii "FIQS"
 	.org 0xd8
 	.globl spin_cpu0
 spin_cpu0:
@@ -133,3 +157,29 @@ kernel_entry32:
 	.word 0x0
 
 	.org 0x100
+
+setup_gic:
+	mrs x0, mpidr_el1
+	ldr x2, =GIC_DISTB
+	tst x0, #0x3
+	b.eq 1f
+
+	mov w0, #3
+	str w0, [x2, #GICD_CTRLR]
+1:
+	add x1, x2, #(GIC_CPUB - GIC_DISTB)
+	mov w0, #0x1e7
+	str w0, [x1, #GICC_CTRLR]
+	mov w0, #0xff
+	str w0, [x1, #GICC_PMR]
+
+	add x2, x2, #GICD_IGROUPR
+	mov x0, #(GIC_IT_NR * 4)
+	mov w1, #~0
+2:
+	subs x0, x0, #4
+	str w1, [x2, x0]
+	b.ne 2b
+	ret
+
+	.ltorg

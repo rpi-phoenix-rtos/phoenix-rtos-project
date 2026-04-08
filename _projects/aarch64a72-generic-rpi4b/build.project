@@ -83,6 +83,24 @@ b_build_project() {
 }
 
 
+rpi4b_buildArmstub() {
+	local src="${PROJECT_PATH}/phoenix-armstub8-rpi4.S"
+	local outdir="${PREFIX_BUILD}/armstub"
+	local obj="${outdir}/phoenix-armstub8-rpi4.o"
+	local elf="${outdir}/phoenix-armstub8-rpi4.elf"
+	local bin="${outdir}/phoenix-armstub8-rpi4.bin"
+	local objcopy="${CROSS}objcopy"
+
+	mkdir -p "${outdir}"
+
+	"${CC}" -c -nostdlib -ffreestanding "${src}" -o "${obj}"
+	"${LD}" -nostdlib -Ttext=0x0 -o "${elf}" "${obj}"
+	"${objcopy}" -O binary "${elf}" "${bin}"
+
+	printf '%s\n' "${bin}"
+}
+
+
 rpi4b_stageFirmware() {
 	local bootdir="$1"
 	local file=""
@@ -122,14 +140,17 @@ b_image_project() {
 	local bootdir="${PREFIX_BOOT}/rpi4b"
 	local plo_img="${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img"
 	local loader_img="${PREFIX_BOOT}/loader.disk"
+	local armstub_img=""
 	local loader_size=""
 	local ram_bank_size=$((0x08000000))
 
 	mkdir -p "${bootdir}"
+	armstub_img="$(rpi4b_buildArmstub)"
 
 	cp -a "${PROJECT_PATH}/config.txt" "${bootdir}/config.txt"
 	cp -a "${plo_img}" "${bootdir}/kernel8.img"
 	cp -a "${loader_img}" "${bootdir}/loader.disk"
+	cp -a "${armstub_img}" "${bootdir}/phoenix-armstub8-rpi4.bin"
 
 	if ! rpi4b_stageFirmware "${bootdir}"; then
 		return 1

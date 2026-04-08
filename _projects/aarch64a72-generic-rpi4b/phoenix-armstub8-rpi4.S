@@ -44,6 +44,7 @@
 #define GPIO42_SET      (1 << 10)
 #define GPIO42_CLR      (1 << 10)
 #define OSC_FREQ        54000000
+#define PLO_LOAD_ADDR   0x40080000
 
 #define SCR_RW       BIT(10)
 #define SCR_HCE      BIT(8)
@@ -125,8 +126,14 @@ secondary_spin:
 
 primary_cpu:
 	bl	gpio42_led_off
-	ldr	w4, kernel_entry32
-	ldr	w0, dtb_ptr32
+	/*
+	 * The current Phoenix kernel8.img is a raw plo binary, not a Linux
+	 * Image-format payload. On real Pi firmware, the armstub kernel entry
+	 * slot is derived by parsing the 64-bit kernel header, so for this
+	 * bounded experiment jump directly to the configured kernel_address.
+	 */
+	ldr	x4, =PLO_LOAD_ADDR
+	mov	x0, #0
 	mov	x1, #0
 	mov	x2, #0
 	mov	x3, #0

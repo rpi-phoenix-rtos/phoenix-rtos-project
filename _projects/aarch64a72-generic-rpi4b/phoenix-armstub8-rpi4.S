@@ -43,8 +43,8 @@
 #define GPIO42_OUTPUT   (1 << GPIO42_SHIFT)
 #define GPIO42_SET      (1 << 10)
 #define GPIO42_CLR      (1 << 10)
-#define GPIO42_TICK_DELAY 0x00400000
-#define GPIO42_GAP_TICKS  3
+#define GPIO42_TICK_DELAY 0x00600000
+#define GPIO42_GAP_TICKS  5
 #define OSC_FREQ        54000000
 #define PLO_LOAD_ADDR   0x40080000
 
@@ -249,23 +249,18 @@ gpio42_stage_emit:
 	mov	x12, x30
 	mov	w11, w0
 	bl	gpio42_led_off
-	mov	w10, #GPIO42_GAP_TICKS
 1:
-	gpio42_delay_once x9
-	subs	w10, w10, #1
-	b.ne	1b
-2:
 	bl	gpio42_led_on
 	gpio42_delay_once x9
 	bl	gpio42_led_off
 	gpio42_delay_once x9
 	subs	w11, w11, #1
-	b.ne	2b
+	b.ne	1b
 	mov	w10, #GPIO42_GAP_TICKS
-3:
+2:
 	gpio42_delay_once x9
 	subs	w10, w10, #1
-	b.ne	3b
+	b.ne	2b
 	mov	x30, x12
 	ret
 

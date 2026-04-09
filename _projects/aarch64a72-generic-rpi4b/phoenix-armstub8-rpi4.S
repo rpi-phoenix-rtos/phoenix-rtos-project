@@ -43,6 +43,8 @@
 #define GPIO42_OUTPUT   (1 << GPIO42_SHIFT)
 #define GPIO42_SET      (1 << 10)
 #define GPIO42_CLR      (1 << 10)
+#define GPIO42_TICK_DELAY 0x00400000
+#define GPIO42_GAP_TICKS  3
 #define OSC_FREQ        54000000
 #define PLO_LOAD_ADDR   0x40080000
 
@@ -76,7 +78,7 @@ _start:
 	mrs	x7, mpidr_el1
 	and	x7, x7, #0x3
 	cbnz	x7, 0f
-	bl	gpio42_led_on
+	bl	gpio42_stage1
 0:
 	mov x0, LOCAL_CONTROL
 	str wzr, [x0]
@@ -98,6 +100,7 @@ _start:
 	msr	CPUECTLR_EL1, x0
 
 	bl setup_gic
+	bl	gpio42_stage2
 
 	ldr	x0, =0x30c50830
 	msr	sctlr_el2, x0
@@ -125,7 +128,7 @@ secondary_spin:
 	br	x4
 
 primary_cpu:
-	bl	gpio42_led_off
+	bl	gpio42_stage3
 	/*
 	 * The current Phoenix kernel8.img is a raw plo binary, not a Linux
 	 * Image-format payload. On real Pi firmware, the armstub kernel entry
@@ -178,6 +181,20 @@ kernel_entry32:
 
 	.org 0x100
 
+gpio42_stage1:
+	mov	w0, #1
+	b	gpio42_stage_emit
+
+
+gpio42_stage2:
+	mov	w0, #2
+	b	gpio42_stage_emit
+
+
+gpio42_stage3:
+	mov	w0, #3
+	b	gpio42_stage_emit
+
 setup_gic:
 	mrs x0, mpidr_el1
 	ldr x2, =GIC_DISTB
@@ -217,6 +234,39 @@ gpio42_led_on:
 	ldr	x0, =GPIO_GPSET1
 	mov	w1, #GPIO42_SET
 	str	w1, [x0]
+	ret
+
+
+.macro gpio42_delay_once reg
+	ldr	\reg, =GPIO42_TICK_DELAY
+991:
+	subs	\reg, \reg, #1
+	b.ne	991b
+.endm
+
+
+gpio42_stage_emit:
+	mov	x12, x30
+	mov	w11, w0
+	bl	gpio42_led_off
+	mov	w10, #GPIO42_GAP_TICKS
+1:
+	gpio42_delay_once x9
+	subs	w10, w10, #1
+	b.ne	1b
+2:
+	bl	gpio42_led_on
+	gpio42_delay_once x9
+	bl	gpio42_led_off
+	gpio42_delay_once x9
+	subs	w11, w11, #1
+	b.ne	2b
+	mov	w10, #GPIO42_GAP_TICKS
+3:
+	gpio42_delay_once x9
+	subs	w10, w10, #1
+	b.ne	3b
+	mov	x30, x12
 	ret
 
 

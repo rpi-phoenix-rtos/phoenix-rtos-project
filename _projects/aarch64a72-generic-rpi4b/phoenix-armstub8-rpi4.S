@@ -50,6 +50,7 @@
 #define GPIO42_LONG_TICKS  0x00300000
 #define GPIO42_SYNC_TICKS  0x00480000
 #define GPIO42_STAGE_GAP_TICKS 0x00480000
+#define GPIO42_FOCUS_STAGE_GAP_TICKS 0x00900000
 #define OSC_FREQ        54000000
 #define PLO_LOAD_ADDR   0x40080000
 
@@ -188,30 +189,38 @@ primary_cpu_late:
 	 * bounded experiment jump directly to the configured kernel_address.
 	 */
 	mov	w0, #23
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
 	ldr	x4, =PLO_LOAD_ADDR
 	mov	w0, #24
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
+	dsb	sy
+	isb
+	mov	w0, #21
+	bl	gpio42_stage_emit_focus
 	ldr	w5, [x4, #PLO_RPI_FIXED_ENTRY_SIGNATURE_OFFSET]
 	mov	w0, #25
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
+	dsb	sy
+	isb
+	mov	w0, #22
+	bl	gpio42_stage_emit_focus
 	ldr	w6, [x4, #(PLO_RPI_FIXED_ENTRY_SIGNATURE_OFFSET + 4)]
 	mov	w0, #26
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
 	ldr	w7, =PLO_RPI_FIXED_ENTRY_SIGNATURE0
 	mov	w0, #27
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
 	cmp	w5, w7
 	b.ne	fixed_target_bad
 	mov	w0, #28
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
 	ldr	w7, =PLO_RPI_FIXED_ENTRY_SIGNATURE1
 	mov	w0, #29
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
 	cmp	w6, w7
 	b.ne	fixed_target_bad
 	mov	w0, #30
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
 	bl	gpio42_stage4
 	dsb	sy
 	ic	iallu
@@ -262,7 +271,7 @@ vectors_el2:
 
 armstub_exception:
 	mov	w0, #0
-	bl	gpio42_stage_emit
+	bl	gpio42_stage_emit_focus
 2:
 	wfe
 	b	2b
@@ -284,12 +293,12 @@ gpio42_stage3:
 
 gpio42_stage4:
 	mov	w0, #4
-	b	gpio42_stage_emit
+	b	gpio42_stage_emit_focus
 
 
 gpio42_stage31:
 	mov	w0, #31
-	b	gpio42_stage_emit
+	b	gpio42_stage_emit_focus
 
 setup_gic:
 	mrs x0, mpidr_el1
@@ -369,6 +378,17 @@ gpio42_stage_emit:
 
 	gpio42_delay_ticks x9, GPIO42_STAGE_GAP_TICKS
 	mov	x30, x12
+	ret
+
+
+gpio42_stage_emit_focus:
+	mov	x13, x30
+	mov	w14, w0
+	bl	gpio42_stage_emit
+	mov	w0, w14
+	bl	gpio42_stage_emit
+	gpio42_delay_ticks x9, GPIO42_FOCUS_STAGE_GAP_TICKS
+	mov	x30, x13
 	ret
 
 

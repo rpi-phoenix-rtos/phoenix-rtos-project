@@ -157,6 +157,10 @@ start_late:
 	eret
 
 in_el2:
+	adr	x0, vectors_el2
+	msr	vbar_el2, x0
+	isb
+
 	mrs	x6, mpidr_el1
 	and	x6, x6, #0x3
 	cbz	x6, primary_cpu
@@ -183,15 +187,31 @@ primary_cpu_late:
 	 * slot is derived by parsing the 64-bit kernel header, so for this
 	 * bounded experiment jump directly to the configured kernel_address.
 	 */
+	mov	w0, #23
+	bl	gpio42_stage_emit
 	ldr	x4, =PLO_LOAD_ADDR
+	mov	w0, #24
+	bl	gpio42_stage_emit
 	ldr	w5, [x4, #PLO_RPI_FIXED_ENTRY_SIGNATURE_OFFSET]
+	mov	w0, #25
+	bl	gpio42_stage_emit
 	ldr	w6, [x4, #(PLO_RPI_FIXED_ENTRY_SIGNATURE_OFFSET + 4)]
+	mov	w0, #26
+	bl	gpio42_stage_emit
 	ldr	w7, =PLO_RPI_FIXED_ENTRY_SIGNATURE0
+	mov	w0, #27
+	bl	gpio42_stage_emit
 	cmp	w5, w7
 	b.ne	fixed_target_bad
+	mov	w0, #28
+	bl	gpio42_stage_emit
 	ldr	w7, =PLO_RPI_FIXED_ENTRY_SIGNATURE1
+	mov	w0, #29
+	bl	gpio42_stage_emit
 	cmp	w6, w7
 	b.ne	fixed_target_bad
+	mov	w0, #30
+	bl	gpio42_stage_emit
 	bl	gpio42_stage4
 	dsb	sy
 	ic	iallu
@@ -204,6 +224,48 @@ fixed_target_bad:
 1:
 	wfe
 	b	1b
+
+	.align 11
+vectors_el2:
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+	b	armstub_exception
+	.balign 0x80
+
+armstub_exception:
+	mov	w0, #0
+	bl	gpio42_stage_emit
+2:
+	wfe
+	b	2b
 
 gpio42_stage1:
 	mov	w0, #1

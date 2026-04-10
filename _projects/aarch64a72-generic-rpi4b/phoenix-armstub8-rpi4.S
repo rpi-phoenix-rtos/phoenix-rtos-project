@@ -139,10 +139,10 @@ primary_cpu:
 	 * bounded experiment jump directly to the configured kernel_address.
 	 */
 	ldr	x4, =PLO_LOAD_ADDR
-	mov	x0, #0
-	mov	x1, #0
-	mov	x2, #0
-	mov	x3, #0
+	dsb	sy
+	ic	iallu
+	dsb	sy
+	isb
 	br	x4
 
 	.ltorg

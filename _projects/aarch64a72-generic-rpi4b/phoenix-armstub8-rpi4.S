@@ -43,8 +43,11 @@
 #define GPIO42_OUTPUT   (1 << GPIO42_SHIFT)
 #define GPIO42_SET      (1 << 10)
 #define GPIO42_CLR      (1 << 10)
-#define GPIO42_TICK_DELAY 0x00600000
-#define GPIO42_GAP_TICKS  5
+#define GPIO42_CODE_BITS   5
+#define GPIO42_SHORT_TICKS 0x00180000
+#define GPIO42_LONG_TICKS  0x00300000
+#define GPIO42_SYNC_TICKS  0x00480000
+#define GPIO42_STAGE_GAP_TICKS 0x00480000
 #define OSC_FREQ        54000000
 #define PLO_LOAD_ADDR   0x40080000
 
@@ -237,8 +240,8 @@ gpio42_led_on:
 	ret
 
 
-.macro gpio42_delay_once reg
-	ldr	\reg, =GPIO42_TICK_DELAY
+.macro gpio42_delay_ticks reg, ticks
+	ldr	\reg, =\ticks
 991:
 	subs	\reg, \reg, #1
 	b.ne	991b
@@ -249,18 +252,29 @@ gpio42_stage_emit:
 	mov	x12, x30
 	mov	w11, w0
 	bl	gpio42_led_off
+
+	/* Sync pulse before the fixed-width stage code. */
+	bl	gpio42_led_on
+	gpio42_delay_ticks x9, GPIO42_SYNC_TICKS
+	bl	gpio42_led_off
+	gpio42_delay_ticks x9, GPIO42_SYNC_TICKS
+
+	mov	w10, #(1 << (GPIO42_CODE_BITS - 1))
 1:
 	bl	gpio42_led_on
-	gpio42_delay_once x9
-	bl	gpio42_led_off
-	gpio42_delay_once x9
-	subs	w11, w11, #1
-	b.ne	1b
-	mov	w10, #GPIO42_GAP_TICKS
+	tst	w11, w10
+	b.eq	2f
+	gpio42_delay_ticks x9, GPIO42_LONG_TICKS
+	b	3f
 2:
-	gpio42_delay_once x9
-	subs	w10, w10, #1
-	b.ne	2b
+	gpio42_delay_ticks x9, GPIO42_SHORT_TICKS
+3:
+	bl	gpio42_led_off
+	gpio42_delay_ticks x9, GPIO42_SHORT_TICKS
+	lsr	w10, w10, #1
+	cbnz	w10, 1b
+
+	gpio42_delay_ticks x9, GPIO42_STAGE_GAP_TICKS
 	mov	x30, x12
 	ret
 

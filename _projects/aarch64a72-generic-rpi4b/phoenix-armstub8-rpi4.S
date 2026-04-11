@@ -52,7 +52,6 @@
 #define GPIO42_STAGE_GAP_TICKS 0x00480000
 #define GPIO42_FOCUS_STAGE_GAP_TICKS 0x00900000
 #define OSC_FREQ        54000000
-#define PLO_LOAD_ADDR   0x40080000
 
 #define SCR_RW       BIT(10)
 #define SCR_HCE      BIT(8)
@@ -183,45 +182,27 @@ primary_cpu:
 
 primary_cpu_late:
 	/*
-	 * The current Phoenix kernel8.img is a raw plo binary, not a Linux
-	 * Image-format payload. On real Pi firmware, the armstub kernel entry
-	 * slot is derived by parsing the 64-bit kernel header, so for this
-	 * bounded experiment jump directly to the configured kernel_address.
+	 * Restore the standard Pi firmware handoff contract here:
+	 * - x0 receives the firmware-provided DTB pointer
+	 * - x4 receives the firmware-provided kernel entry address
+	 *
+	 * The earlier fixed-address target probing turned the late armstub seam
+	 * into the failure site itself on real hardware. Keep the proof points,
+	 * but stop dereferencing the target image before the branch.
 	 */
 	mov	w0, #23
 	bl	gpio42_stage_emit_focus
-	ldr	x4, =PLO_LOAD_ADDR
+	ldr	w5, dtb_ptr32
 	mov	w0, #24
 	bl	gpio42_stage_emit_focus
-	dsb	sy
-	isb
-	mov	w0, #21
-	bl	gpio42_stage_emit_focus
-	ldr	w5, [x4, #PLO_RPI_FIXED_ENTRY_SIGNATURE_OFFSET]
+	ldr	w4, kernel_entry32
 	mov	w0, #25
 	bl	gpio42_stage_emit_focus
-	dsb	sy
-	isb
-	mov	w0, #22
-	bl	gpio42_stage_emit_focus
-	ldr	w6, [x4, #(PLO_RPI_FIXED_ENTRY_SIGNATURE_OFFSET + 4)]
+	cbz	x4, fixed_target_bad
 	mov	w0, #26
 	bl	gpio42_stage_emit_focus
-	ldr	w7, =PLO_RPI_FIXED_ENTRY_SIGNATURE0
-	mov	w0, #27
-	bl	gpio42_stage_emit_focus
-	cmp	w5, w7
-	b.ne	fixed_target_bad
-	mov	w0, #28
-	bl	gpio42_stage_emit_focus
-	ldr	w7, =PLO_RPI_FIXED_ENTRY_SIGNATURE1
-	mov	w0, #29
-	bl	gpio42_stage_emit_focus
-	cmp	w6, w7
-	b.ne	fixed_target_bad
-	mov	w0, #30
-	bl	gpio42_stage_emit_focus
 	bl	gpio42_stage4
+	mov	x0, x5
 	dsb	sy
 	ic	iallu
 	dsb	sy

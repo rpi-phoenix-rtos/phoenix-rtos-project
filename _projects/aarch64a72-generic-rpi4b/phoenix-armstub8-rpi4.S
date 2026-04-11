@@ -52,6 +52,7 @@
 #define GPIO42_STAGE_GAP_TICKS 0x00480000
 #define GPIO42_FOCUS_STAGE_GAP_TICKS 0x00900000
 #define OSC_FREQ        54000000
+#define PI4_KERNEL_FALLBACK_ENTRY 0x00080000
 
 #define SCR_RW       BIT(10)
 #define SCR_HCE      BIT(8)
@@ -120,6 +121,7 @@ kernel_entry32:
 	.org 0x100
 
 start_late:
+	mov	x28, x0
 	mrs	x7, mpidr_el1
 	and	x7, x7, #0x3
 	cbnz	x7, 0f
@@ -193,27 +195,30 @@ primary_cpu_late:
 	mov	w0, #23
 	bl	gpio42_stage_emit_focus
 	ldr	w5, dtb_ptr32
+	cbnz	x5, 0f
+	mov	x5, x28
+	mov	w0, #29
+	bl	gpio42_stage_emit_focus
+0:
 	mov	w0, #24
 	bl	gpio42_stage_emit_focus
 	ldr	w4, kernel_entry32
 	mov	w0, #25
 	bl	gpio42_stage_emit_focus
-	cbz	x4, fixed_target_bad
+	cbnz	x4, 1f
+	ldr	x4, =PI4_KERNEL_FALLBACK_ENTRY
+	mov	w0, #30
+	bl	gpio42_stage_emit_focus
+	b	2f
+1:
 	mov	w0, #26
 	bl	gpio42_stage_emit_focus
+2:
 	bl	gpio42_stage4
 	mov	x0, x5
 	dsb	sy
-	ic	iallu
-	dsb	sy
 	isb
 	br	x4
-
-fixed_target_bad:
-	bl	gpio42_stage31
-1:
-	wfe
-	b	1b
 
 	.align 11
 vectors_el2:

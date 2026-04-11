@@ -101,6 +101,40 @@ rpi4b_buildArmstub() {
 }
 
 
+rpi4b_buildKernelImage() {
+	local plo_img="$1"
+	local src="${PROJECT_PATH}/phoenix-kernel8-reloc.S"
+	local lds="${PROJECT_PATH}/phoenix-kernel8-reloc.lds"
+	local outdir="${PREFIX_BUILD}/kernel8-reloc"
+	local tramp_obj="${outdir}/phoenix-kernel8-reloc.o"
+	local payload_bin="${outdir}/phoenix-plo-payload.bin"
+	local payload_obj="${outdir}/phoenix-plo-payload.o"
+	local elf="${outdir}/phoenix-kernel8-reloc.elf"
+	local bin="${outdir}/kernel8.img"
+	local objcopy="${CROSS}objcopy"
+
+	mkdir -p "${outdir}"
+	cp -a "${plo_img}" "${payload_bin}"
+
+	"${CC}" -c -nostdlib -ffreestanding "${src}" -o "${tramp_obj}"
+
+	(
+		cd "${outdir}" || exit 1
+		"${objcopy}" -I binary -O elf64-littleaarch64 -B aarch64 \
+			--rename-section .data=.payload,alloc,load,readonly,data,contents \
+			--redefine-sym _binary_phoenix_plo_payload_bin_start=phoenix_plo_payload_start \
+			--redefine-sym _binary_phoenix_plo_payload_bin_end=phoenix_plo_payload_end \
+			--redefine-sym _binary_phoenix_plo_payload_bin_size=phoenix_plo_payload_size \
+			"$(basename "${payload_bin}")" "$(basename "${payload_obj}")"
+	)
+
+	"${LD}" -nostdlib -T "${lds}" -o "${elf}" "${tramp_obj}" "${payload_obj}"
+	"${objcopy}" -O binary "${elf}" "${bin}"
+
+	printf '%s\n' "${bin}"
+}
+
+
 rpi4b_stageFirmware() {
 	local bootdir="$1"
 	local file=""
@@ -139,6 +173,7 @@ rpi4b_stageFirmware() {
 b_image_project() {
 	local bootdir="${PREFIX_BOOT}/rpi4b"
 	local plo_img="${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img"
+	local kernel_img=""
 	local loader_img="${PREFIX_BOOT}/loader.disk"
 	local armstub_img=""
 	local loader_size=""
@@ -146,9 +181,10 @@ b_image_project() {
 
 	mkdir -p "${bootdir}"
 	armstub_img="$(rpi4b_buildArmstub)"
+	kernel_img="$(rpi4b_buildKernelImage "${plo_img}")"
 
 	cp -a "${PROJECT_PATH}/config.txt" "${bootdir}/config.txt"
-	cp -a "${plo_img}" "${bootdir}/kernel8.img"
+	cp -a "${kernel_img}" "${bootdir}/kernel8.img"
 	cp -a "${loader_img}" "${bootdir}/loader.disk"
 	cp -a "${armstub_img}" "${bootdir}/phoenix-armstub8-rpi4.bin"
 

@@ -12,17 +12,7 @@
 
 #define UARTDR_OFFSET 0x0
 #define UARTFR_OFFSET 0x18
-#define UARTIBRD_OFFSET 0x24
-#define UARTFBRD_OFFSET 0x28
-#define UARTLCRH_OFFSET 0x2c
-#define UARTCR_OFFSET 0x30
-#define UARTICR_OFFSET 0x44
 #define UARTFR_TXFF   (1 << 5)
-#define UARTCR_UARTEN (1 << 0)
-#define UARTCR_TXE    (1 << 8)
-#define UARTCR_RXE    (1 << 9)
-#define UARTLCRH_FEN  (1 << 4)
-#define UARTLCRH_WLEN_8BIT (3 << 5)
 
 #define PLO_DEST      PLO_RPI_PLO_DEST
 #define CACHE_LINE    64
@@ -47,36 +37,6 @@
 .endm
 
 
-.macro uart_reinit_115200
-	ldr x9, =(PLO_UART0_BASE_ADDRESS + UARTCR_OFFSET)
-	mov w10, #0
-	str w10, [x9]
-
-	ldr x9, =(PLO_UART0_BASE_ADDRESS + UARTICR_OFFSET)
-	mov w10, #0x7ff
-	str w10, [x9]
-
-	ldr x9, =(PLO_UART0_BASE_ADDRESS + UARTIBRD_OFFSET)
-	mov w10, #26
-	str w10, [x9]
-
-	ldr x9, =(PLO_UART0_BASE_ADDRESS + UARTFBRD_OFFSET)
-	mov w10, #3
-	str w10, [x9]
-
-	ldr x9, =(PLO_UART0_BASE_ADDRESS + UARTLCRH_OFFSET)
-	mov w10, #(UARTLCRH_FEN | UARTLCRH_WLEN_8BIT)
-	str w10, [x9]
-
-	ldr x9, =(PLO_UART0_BASE_ADDRESS + UARTCR_OFFSET)
-	mov w10, #(UARTCR_UARTEN | UARTCR_TXE | UARTCR_RXE)
-	str w10, [x9]
-
-	dsb sy
-	isb
-.endm
-
-
 .macro uart_tag a, b, c
 	uart_putc \a
 	uart_putc \b
@@ -88,7 +48,10 @@
 
 _start:
 	mov x19, x0
-	uart_reinit_115200
+	/* Keep the firmware-programmed PL011 rate for the dedicated post-switch
+	 * UART lane. Reprogramming the UART here made the host-side capture
+	 * boundary ambiguous without yet improving the real hardware diagnosis.
+	 */
 	uart_tag 0x54, 0x52, 0x30
 
 	adrp x20, phoenix_plo_payload_start

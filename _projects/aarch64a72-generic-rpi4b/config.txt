@@ -9,6 +9,7 @@ kernel=kernel8.img
 initramfs loader.disk 0x08000000
 enable_uart=1
 uart_2ndstage=1
+init_uart_baud=115200
 hdmi_force_hotplug=1
 disable_overscan=1
 disable_splash=1

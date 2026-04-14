@@ -25,34 +25,8 @@
 	.extern phoenix_plo_payload_end
 
 
-.macro uart_putc imm
-991:
-	ldr x9, =(PLO_UART0_BASE_ADDRESS + UARTFR_OFFSET)
-	ldr w10, [x9]
-	tst w10, #UARTFR_TXFF
-	b.ne 991b
-	ldr x9, =(PLO_UART0_BASE_ADDRESS + UARTDR_OFFSET)
-	mov w10, #\imm
-	str w10, [x9]
-.endm
-
-
-.macro uart_tag a, b, c
-	uart_putc \a
-	uart_putc \b
-	uart_putc \c
-	uart_putc 0x0d
-	uart_putc 0x0a
-.endm
-
-
 _start:
 	mov x19, x0
-	/* Keep the firmware-programmed PL011 rate for the dedicated post-switch
-	 * UART lane. Reprogramming the UART here made the host-side capture
-	 * boundary ambiguous without yet improving the real hardware diagnosis.
-	 */
-	uart_tag 0x54, 0x52, 0x30
 
 	adrp x20, phoenix_plo_payload_start
 	add x20, x20, :lo12:phoenix_plo_payload_start
@@ -62,8 +36,6 @@ _start:
 	mov x23, x22
 	sub x26, x21, x20
 	add x27, x23, x26
-
-	uart_tag 0x54, 0x52, 0x31
 
 copy_loop:
 	cmp x20, x21
@@ -101,9 +73,6 @@ cache_loop:
 	dsb ish
 	isb
 
-	uart_tag 0x54, 0x52, 0x32
-
 	mov x0, x19
-	uart_tag 0x54, 0x52, 0x33
 	ldr x22, =PLO_DEST
 	br x22

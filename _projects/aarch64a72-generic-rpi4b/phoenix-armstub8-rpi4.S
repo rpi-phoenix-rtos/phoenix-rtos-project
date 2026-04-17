@@ -38,19 +38,6 @@
 #define LOCAL_PRESCALER 0xff800008
 #define GIC_DISTB       0xff841000
 #define GIC_CPUB        0xff842000
-#define GPIO_GPFSEL4    0xfe200010
-#define GPIO_GPSET1     0xfe200020
-#define GPIO_GPCLR1     0xfe20002c
-#define GPIO42_SHIFT    6
-#define GPIO42_OUTPUT   (1 << GPIO42_SHIFT)
-#define GPIO42_SET      (1 << 10)
-#define GPIO42_CLR      (1 << 10)
-#define GPIO42_CODE_BITS   5
-#define GPIO42_SHORT_TICKS 0x00180000
-#define GPIO42_LONG_TICKS  0x00300000
-#define GPIO42_SYNC_TICKS  0x00480000
-#define GPIO42_STAGE_GAP_TICKS 0x00480000
-#define GPIO42_FOCUS_STAGE_GAP_TICKS 0x00900000
 #define OSC_FREQ        54000000
 #define PI4_KERNEL_FALLBACK_ENTRY 0x00080000
 
@@ -124,9 +111,6 @@ start_late:
 	mov	x28, x0
 	mrs	x7, mpidr_el1
 	and	x7, x7, #0x3
-	cbnz	x7, 0f
-	bl	gpio42_stage1
-0:
 	mov x0, LOCAL_CONTROL
 	str wzr, [x0]
 	mov w1, 0x80000000
@@ -147,7 +131,6 @@ start_late:
 	msr	CPUECTLR_EL1, x0
 
 	bl setup_gic
-	bl	gpio42_stage2
 
 	ldr	x0, =0x30c50830
 	msr	sctlr_el2, x0
@@ -179,7 +162,6 @@ secondary_spin:
 	br	x4
 
 primary_cpu:
-	bl	gpio42_stage3
 	b	primary_cpu_late
 
 primary_cpu_late:
@@ -192,29 +174,14 @@ primary_cpu_late:
 	 * into the failure site itself on real hardware. Keep the proof points,
 	 * but stop dereferencing the target image before the branch.
 	 */
-	mov	w0, #23
-	bl	gpio42_stage_emit_focus
 	ldr	w5, dtb_ptr32
 	cbnz	x5, 0f
 	mov	x5, x28
-	mov	w0, #29
-	bl	gpio42_stage_emit_focus
 0:
-	mov	w0, #24
-	bl	gpio42_stage_emit_focus
 	ldr	w4, kernel_entry32
-	mov	w0, #25
-	bl	gpio42_stage_emit_focus
 	cbnz	x4, 1f
 	ldr	x4, =PI4_KERNEL_FALLBACK_ENTRY
-	mov	w0, #30
-	bl	gpio42_stage_emit_focus
-	b	2f
 1:
-	mov	w0, #26
-	bl	gpio42_stage_emit_focus
-2:
-	bl	gpio42_stage4
 	mov	x0, x5
 	dsb	sy
 	isb
@@ -256,35 +223,9 @@ vectors_el2:
 	.balign 0x80
 
 armstub_exception:
-	mov	w0, #0
-	bl	gpio42_stage_emit_focus
 2:
 	wfe
 	b	2b
-
-gpio42_stage1:
-	mov	w0, #1
-	b	gpio42_stage_emit
-
-
-gpio42_stage2:
-	mov	w0, #2
-	b	gpio42_stage_emit
-
-
-gpio42_stage3:
-	mov	w0, #3
-	b	gpio42_stage_emit
-
-
-gpio42_stage4:
-	mov	w0, #4
-	b	gpio42_stage_emit_focus
-
-
-gpio42_stage31:
-	mov	w0, #31
-	b	gpio42_stage_emit_focus
 
 setup_gic:
 	mrs x0, mpidr_el1
@@ -311,83 +252,3 @@ setup_gic:
 	ret
 
 	.ltorg
-
-
-gpio42_led_on:
-	ldr	x0, =GPIO_GPFSEL4
-	ldr	w1, [x0]
-	mov	w2, #(7 << GPIO42_SHIFT)
-	bic	w1, w1, w2
-	mov	w2, #GPIO42_OUTPUT
-	orr	w1, w1, w2
-	str	w1, [x0]
-
-	ldr	x0, =GPIO_GPSET1
-	mov	w1, #GPIO42_SET
-	str	w1, [x0]
-	ret
-
-
-.macro gpio42_delay_ticks reg, ticks
-	ldr	\reg, =\ticks
-991:
-	subs	\reg, \reg, #1
-	b.ne	991b
-.endm
-
-
-gpio42_stage_emit:
-	mov	x12, x30
-	mov	w11, w0
-	bl	gpio42_led_off
-
-	/* Sync pulse before the fixed-width stage code. */
-	bl	gpio42_led_on
-	gpio42_delay_ticks x9, GPIO42_SYNC_TICKS
-	bl	gpio42_led_off
-	gpio42_delay_ticks x9, GPIO42_SYNC_TICKS
-
-	mov	w10, #(1 << (GPIO42_CODE_BITS - 1))
-1:
-	bl	gpio42_led_on
-	tst	w11, w10
-	b.eq	2f
-	gpio42_delay_ticks x9, GPIO42_LONG_TICKS
-	b	3f
-2:
-	gpio42_delay_ticks x9, GPIO42_SHORT_TICKS
-3:
-	bl	gpio42_led_off
-	gpio42_delay_ticks x9, GPIO42_SHORT_TICKS
-	lsr	w10, w10, #1
-	cbnz	w10, 1b
-
-	gpio42_delay_ticks x9, GPIO42_STAGE_GAP_TICKS
-	mov	x30, x12
-	ret
-
-
-gpio42_stage_emit_focus:
-	mov	x13, x30
-	mov	w14, w0
-	bl	gpio42_stage_emit
-	mov	w0, w14
-	bl	gpio42_stage_emit
-	gpio42_delay_ticks x9, GPIO42_FOCUS_STAGE_GAP_TICKS
-	mov	x30, x13
-	ret
-
-
-gpio42_led_off:
-	ldr	x0, =GPIO_GPFSEL4
-	ldr	w1, [x0]
-	mov	w2, #(7 << GPIO42_SHIFT)
-	bic	w1, w1, w2
-	mov	w2, #GPIO42_OUTPUT
-	orr	w1, w1, w2
-	str	w1, [x0]
-
-	ldr	x0, =GPIO_GPCLR1
-	mov	w1, #GPIO42_CLR
-	str	w1, [x0]
-	ret

@@ -10,6 +10,8 @@ initramfs loader.disk 0x08000000
 enable_uart=1
 uart_2ndstage=1
 init_uart_baud=115200
+init_uart_clock=48000000
+dtoverlay=miniuart-bt
 force_turbo=1
 core_freq=250
 hdmi_force_hotplug=1

@@ -40,6 +40,13 @@
 #define GIC_CPUB        0xff842000
 #define OSC_FREQ        54000000
 #define PI4_KERNEL_FALLBACK_ENTRY 0x00080000
+#define UARTDR_OFFSET   0x0
+#define UARTFR_OFFSET   0x18
+#define UARTIBRD_OFFSET 0x24
+#define UARTFBRD_OFFSET 0x28
+#define UARTLCRH_OFFSET 0x2c
+#define UARTCR_OFFSET   0x30
+#define UARTFR_TXFF     BIT(5)
 
 #define SCR_RW       BIT(10)
 #define SCR_HCE      BIT(8)
@@ -69,6 +76,32 @@
 	.globl _start
 _start:
 	b	start_late
+
+	.macro uart_reinit_115200
+	ldr	x8, =PL011_TTY_BASE
+	mov	w9, wzr
+	str	w9, [x8, #UARTCR_OFFSET]
+	mov	w9, #26
+	str	w9, [x8, #UARTIBRD_OFFSET]
+	mov	w9, #3
+	str	w9, [x8, #UARTFBRD_OFFSET]
+	mov	w9, #0x70
+	str	w9, [x8, #UARTLCRH_OFFSET]
+	mov	w9, #0x301
+	str	w9, [x8, #UARTCR_OFFSET]
+	dsb	sy
+	isb
+	.endm
+
+	.macro uart_putc imm
+991:
+	ldr	x8, =PL011_TTY_BASE
+	ldr	w9, [x8, #UARTFR_OFFSET]
+	tst	w9, #UARTFR_TXFF
+	b.ne	991b
+	mov	w9, #\imm
+	str	w9, [x8, #UARTDR_OFFSET]
+	.endm
 
 	.org 0xd4
 	.ascii "FIQS"
@@ -182,6 +215,12 @@ primary_cpu_late:
 	cbnz	x4, 1f
 	ldr	x4, =PI4_KERNEL_FALLBACK_ENTRY
 1:
+	uart_reinit_115200
+	uart_putc 65
+	uart_putc 83
+	uart_putc 48
+	uart_putc 13
+	uart_putc 10
 	mov	x0, x5
 	dsb	sy
 	isb

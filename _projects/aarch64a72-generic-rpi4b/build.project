@@ -142,6 +142,9 @@ rpi4b_stageFirmware() {
 		start4.elf
 		fixup4.dat
 	)
+	local required_overlays=(
+		miniuart-bt.dtbo
+	)
 	local optional=(
 		start4db.elf
 		fixup4db.dat
@@ -166,6 +169,16 @@ rpi4b_stageFirmware() {
 		if [ -f "${RPI4B_FIRMWARE_DIR}/${file}" ]; then
 			cp -a "${RPI4B_FIRMWARE_DIR}/${file}" "${bootdir}/${file}"
 		fi
+	done
+
+	mkdir -p "${bootdir}/overlays"
+	for file in "${required_overlays[@]}"; do
+		if [ ! -f "${RPI4B_FIRMWARE_DIR}/overlays/${file}" ]; then
+			b_log "Pi 4 firmware dir is missing required overlay ${file}"
+			return 1
+		fi
+
+		cp -a "${RPI4B_FIRMWARE_DIR}/overlays/${file}" "${bootdir}/overlays/${file}"
 	done
 }
 

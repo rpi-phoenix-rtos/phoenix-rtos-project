@@ -17,22 +17,3 @@ core_freq=250
 hdmi_force_hotplug=1
 disable_overscan=1
 disable_splash=1
-
-# TD-15 / Stage 2 phase 5: unlock 4 GiB DRAM.
-# Without total_mem the Pi 4 firmware treats the board as 1 GiB-aware and
-# clamps ARM-visible memory to ~948 MiB (76 MiB reserved for VC4 by
-# default). Setting total_mem=4096 makes firmware report the full
-# physical 4 GiB and reduces VC4 reservation; gpu_mem=64 fixes the GPU
-# split at a small known value (76 MiB matters only on the 1 GiB-mode
-# default; once total_mem is set we explicitly pick gpu_mem to keep
-# scanout/mailbox alive without giving VC4 unnecessary headroom).
-#
-# Stage 2 phase 4 (DTB-driven memory layout in
-# `sources/phoenix-rtos-kernel/hal/aarch64/dtb.c`) is the structural
-# follow-up: parse `/memory@0` for full RAM, `/reserved-memory` for
-# VC4 / firmware-reserved windows, and `/soc/dma-ranges` for the ARM↔BUS
-# helper. Until phase 4 lands, plo's hardcoded SIZE_DDR=0x3b400000 in
-# `aarch64a72-generic.ldt` clamps the kernel-visible region; the
-# firmware's enlarged ARM_MEM is observable only in firmware logs.
-total_mem=4096
-gpu_mem=64

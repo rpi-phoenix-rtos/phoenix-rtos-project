@@ -58,6 +58,17 @@
 #define CPUECTLR_EL1       S3_1_C15_C2_1
 #define CPUECTLR_EL1_SMPEN BIT(6)
 
+/*
+ * A72 erratum 859971 — disable instruction prefetch.
+ * Mirrors ATF cortex_a72.h CORTEX_A72_CPUACTLR_EL1_DIS_INSTR_PREFETCH (bit 32).
+ * Must be applied at EL3 because S3_1_C15_C2_0 (CPUACTLR_EL1) traps from
+ * EL1 on A72 r0p3; Phoenix's earlier kernel-side attempt at this write
+ * hung silently at the MRS. ATF's cortex_a72_reset_func applies the same
+ * RMW unconditionally for r0p3.
+ */
+#define CPUACTLR_EL1                    S3_1_C15_C2_0
+#define CPUACTLR_EL1_DIS_INSTR_PREFETCH (1UL << 32)
+
 #define SPSR_EL3_D         BIT(9)
 #define SPSR_EL3_A         BIT(8)
 #define SPSR_EL3_I         BIT(7)
@@ -160,8 +171,31 @@ start_late:
 	mov	x0, #SCR_VAL
 	msr	scr_el3, x0
 
+	/*
+	 * A72 EL3-only prerequisites for kernel-side cache enable.
+	 * CPUECTLR_EL1 (S3_1_C15_C2_1) and CPUACTLR_EL1 (S3_1_C15_C2_0)
+	 * trap from EL1 on A72 r0p3, so the kernel cannot apply these
+	 * itself — empirically observed in earlier Phase A attempts.
+	 * ATF's cortex_a72_reset_func applies the same pair.
+	 */
+	/* (1) SMPEN — coherency on; required for inner-shareable D-cache. */
 	mov	x0, #CPUECTLR_EL1_SMPEN
 	msr	CPUECTLR_EL1, x0
+	uart_putc 49	/* '1' — SMPEN done */
+
+	/* (2) Erratum 859971: CPUACTLR_EL1[32] DIS_INSTR_PREFETCH.
+	 *     Required for I-cache to be safe to enable on A72 r0..r0p3.
+	 *     RMW to preserve impl-def reset bits.
+	 *     'orr (immediate)' cannot encode (1<<32); materialise it via x1.
+	 */
+	mrs	x0, CPUACTLR_EL1
+	mov	x1, #CPUACTLR_EL1_DIS_INSTR_PREFETCH
+	orr	x0, x0, x1
+	msr	CPUACTLR_EL1, x0
+	uart_putc 50	/* '2' — 859971 done */
+
+	dsb	sy
+	isb
 
 	bl setup_gic
 

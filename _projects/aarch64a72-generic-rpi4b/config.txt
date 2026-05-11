@@ -14,6 +14,15 @@ init_uart_clock=48000000
 dtoverlay=miniuart-bt
 force_turbo=1
 core_freq=250
+# Lock GPU reserve at the firmware-minimum that still supports HDMI + mailbox + framebuffer.
+# This frees as much DRAM for ARM as the Pi 4 layout allows. Note: `total_mem` cannot
+# enlarge memory — it only caps it, so we omit it. Default behaviour is "use all DRAM".
+# Pi 4 4GB layout (with gpu_mem=76):
+#   0x00000000 - 0x3b3fffff   948 MB   ARM DRAM (chunk 1)
+#   0x3b400000 - 0x3fffffff    76 MB   GPU heap + framebuffer (VC4 owns, ARM stays Device)
+#   0x40000000 - 0xfbffffff  3008 MB   ARM DRAM (chunk 2) — until now unmapped on ARM
+#   0xfc000000 - 0xffffffff    64 MB   BCM2711 peripherals (low-peri mode, MMIO)
+gpu_mem=76
 hdmi_force_hotplug=1
 disable_overscan=1
 disable_splash=1

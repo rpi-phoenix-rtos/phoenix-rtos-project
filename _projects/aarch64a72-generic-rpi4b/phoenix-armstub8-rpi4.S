@@ -177,13 +177,13 @@ start_late:
 	 * trap from EL1 on A72 r0p3, so the kernel cannot apply these
 	 * itself — empirically observed in earlier Phase A attempts.
 	 * ATF's cortex_a72_reset_func applies the same pair.
+	 *
+	 * ORDER MATTERS on A72: CPUACTLR_EL1 must be written BEFORE
+	 * SMPEN. Writes to CPUACTLR_EL1 after the core has joined the
+	 * coherency domain (SMPEN=1) may be silently dropped on r0..r0p3.
+	 * Match TF-A `cpu_reset_func_start cortex_a72` ordering.
 	 */
-	/* (1) SMPEN — coherency on; required for inner-shareable D-cache. */
-	mov	x0, #CPUECTLR_EL1_SMPEN
-	msr	CPUECTLR_EL1, x0
-	uart_putc 49	/* '1' — SMPEN done */
-
-	/* (2) Erratum 859971: CPUACTLR_EL1[32] DIS_INSTR_PREFETCH.
+	/* (1) Erratum 859971: CPUACTLR_EL1[32] DIS_INSTR_PREFETCH.
 	 *     Required for I-cache to be safe to enable on A72 r0..r0p3.
 	 *     RMW to preserve impl-def reset bits.
 	 *     'orr (immediate)' cannot encode (1<<32); materialise it via x1.
@@ -192,7 +192,14 @@ start_late:
 	mov	x1, #CPUACTLR_EL1_DIS_INSTR_PREFETCH
 	orr	x0, x0, x1
 	msr	CPUACTLR_EL1, x0
-	uart_putc 50	/* '2' — 859971 done */
+	uart_putc 49	/* '1' — 859971 done */
+
+	/* (2) SMPEN — coherency on; required for inner-shareable D-cache.
+	 *     Must come AFTER the CPUACTLR write above. */
+	mrs	x0, CPUECTLR_EL1
+	orr	x0, x0, #CPUECTLR_EL1_SMPEN
+	msr	CPUECTLR_EL1, x0
+	uart_putc 50	/* '2' — SMPEN done */
 
 	dsb	sy
 	isb

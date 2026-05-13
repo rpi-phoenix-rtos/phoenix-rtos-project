@@ -69,6 +69,30 @@
 #define CPUACTLR_EL1                    S3_1_C15_C2_0
 #define CPUACTLR_EL1_DIS_INSTR_PREFETCH (1UL << 32)
 
+/*
+ * A72 erratum 1319367 — Speculative AT instruction using out-of-context
+ * translation regime could cause subsequent request to generate an
+ * incorrect translation. Affects ALL r0p0..r0p3 (Pi 4 is r0p3).
+ *
+ * Reference: ARM-EPM-012079 Cortex-A72 SDEN, erratum 1319367.
+ * Workaround: set CPUACTLR2_EL1.bit[0] = 1.
+ * TF-A applies this UNCONDITIONALLY for r0p3 in
+ * `lib/cpus/aarch64/cortex_a72.S` (`errata_a72_1319367_wa`).
+ *
+ * Symptom when missing: after the OS enables MMU and caches, an
+ * unrelated translation request can return a stale or wrong TLB
+ * result. The OS then reads garbage from what it believes is a
+ * valid mapped address — wild pointers, bit-flipped descriptors,
+ * etc. EXACTLY the failure mode plo has been hitting on this port.
+ *
+ * Phoenix-RTOS's previous cache-enable attempts (M+C, M+C+I) failed
+ * with exactly this signature; standard rpi-tools armstub also does
+ * not apply 1319367, so any port that exercises EL1/EL2 stage-1
+ * translation under load on Pi 4 will likely hit this.
+ */
+#define CPUACTLR2_EL1                   S3_1_C15_C2_2
+#define CPUACTLR2_EL1_ERRATA_1319367_WA BIT(0)
+
 #define SPSR_EL3_D         BIT(9)
 #define SPSR_EL3_A         BIT(8)
 #define SPSR_EL3_I         BIT(7)
@@ -194,8 +218,19 @@ start_late:
 	msr	CPUACTLR_EL1, x0
 	uart_putc 49	/* '1' — 859971 done */
 
-	/* (2) SMPEN — coherency on; required for inner-shareable D-cache.
-	 *     Must come AFTER the CPUACTLR write above. */
+	/* (2) Erratum 1319367: CPUACTLR2_EL1[0] = 1. Speculative AT
+	 *     across translation-regime boundary can produce stale TLB
+	 *     results. Affects all r0p0..r0p3 (Pi 4 is r0p3). TF-A
+	 *     applies this unconditionally. Phoenix's previous cache-
+	 *     enable failures (wild-pointer reads after SCTLR.C=1)
+	 *     match the erratum's documented failure mode. */
+	mrs	x0, CPUACTLR2_EL1
+	orr	x0, x0, #CPUACTLR2_EL1_ERRATA_1319367_WA
+	msr	CPUACTLR2_EL1, x0
+	uart_putc 51	/* '3' — 1319367 done */
+
+	/* (3) SMPEN — coherency on; required for inner-shareable D-cache.
+	 *     Must come AFTER the CPUACTLR writes above. */
 	mrs	x0, CPUECTLR_EL1
 	orr	x0, x0, #CPUECTLR_EL1_SMPEN
 	msr	CPUECTLR_EL1, x0

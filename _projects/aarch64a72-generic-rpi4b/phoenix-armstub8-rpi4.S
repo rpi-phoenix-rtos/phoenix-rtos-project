@@ -55,8 +55,11 @@
 #define SCR_NS       BIT(0)
 #define SCR_VAL (SCR_RW | SCR_HCE | SCR_RES1_5 | SCR_RES1_4 | SCR_NS)
 
-#define CPUECTLR_EL1       S3_1_C15_C2_1
-#define CPUECTLR_EL1_SMPEN BIT(6)
+#define CPUECTLR_EL1                             S3_1_C15_C2_1
+#define CPUECTLR_EL1_SMPEN                       BIT(6)
+#define CPUECTLR_EL1_DIS_TWALK_DESC_PREFETCH     (1UL << 38)
+#define CPUECTLR_EL1_L2_IFETCH_PREFETCH_DISTANCE (3UL << 35)
+#define CPUECTLR_EL1_L2_LS_PREFETCH_DISTANCE     (3UL << 32)
 
 /*
  * A72 erratum 859971 — disable instruction prefetch.
@@ -68,6 +71,8 @@
  */
 #define CPUACTLR_EL1                    S3_1_C15_C2_0
 #define CPUACTLR_EL1_DIS_INSTR_PREFETCH (1UL << 32)
+#define CPUACTLR_EL1_DIS_LOAD_PASS_STORE (1UL << 55)
+#define CPUACTLR_EL1_DIS_L1D_HW_PREFETCH (1UL << 56)
 
 /*
  * A72 erratum 1319367 — Speculative AT instruction using out-of-context
@@ -215,6 +220,8 @@ start_late:
 	mrs	x0, CPUACTLR_EL1
 	mov	x1, #CPUACTLR_EL1_DIS_INSTR_PREFETCH
 	orr	x0, x0, x1
+	movz	x1, #0x0180, lsl #48
+	orr	x0, x0, x1	/* C-3v/w: disable L1D prefetch + load-pass-store. */
 	msr	CPUACTLR_EL1, x0
 	uart_putc 49	/* '1' — 859971 done */
 
@@ -229,7 +236,16 @@ start_late:
 	msr	CPUACTLR2_EL1, x0
 	uart_putc 51	/* '3' — 1319367 done */
 
-	/* (3) SMPEN — coherency on; required for inner-shareable D-cache.
+	/* (3) C-3v/w: disable A72 L2/table-walk prefetch before SMPEN. */
+	mrs	x0, CPUECTLR_EL1
+	movz	x1, #0x001b, lsl #32
+	bic	x0, x0, x1
+	movz	x1, #0x0040, lsl #32
+	orr	x0, x0, x1
+	msr	CPUECTLR_EL1, x0
+	uart_putc 52	/* '4' — L2 prefetch policy done */
+
+	/* (4) SMPEN — coherency on; required for inner-shareable D-cache.
 	 *     Must come AFTER the CPUACTLR writes above. */
 	mrs	x0, CPUECTLR_EL1
 	orr	x0, x0, #CPUECTLR_EL1_SMPEN

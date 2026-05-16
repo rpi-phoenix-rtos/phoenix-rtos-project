@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout current repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 3  # current PR merge commit + 1 back
 
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout current repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 2  # current PR merge commit + 1 back
 
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 2  # current PR merge commit + 1 back
 
@@ -86,17 +86,38 @@ jobs:
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-review
 
-
   # reviewdog: shellcheck
   shellcheck-pr:
     if: github.event_name == 'pull_request'
     name: shellcheck-pr
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: reviewdog/action-shellcheck@v1
         with:
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-review
           filter_mode: added
           check_all_files_with_shebangs: "true"
+
+  # reviewdog: shfmt
+  shfmt-pr:
+    if: github.event_name == 'pull_request'
+    name: shfmt-pr
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2  # current PR merge commit + 1 back
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - run: go install mvdan.cc/sh/v3/cmd/shfmt@latest
+
+      - run: |
+          git diff -z --name-only --ignore-submodules=all --diff-filter=d HEAD^ -- '*.sh' '*.project' '*.subr' | xargs -0 -r shfmt -i 0 -w
+
+      - uses: reviewdog/action-suggester@v1
+        with:
+          tool_name: shfmt

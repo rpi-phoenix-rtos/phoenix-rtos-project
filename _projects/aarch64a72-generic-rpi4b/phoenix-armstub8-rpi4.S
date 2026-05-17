@@ -62,6 +62,32 @@
 #define CPUECTLR_EL1_L2_LS_PREFETCH_DISTANCE     (3UL << 32)
 
 /*
+ * BCM2711 silicon requires non-default L2 cache RAM timing for the
+ * 1 MB Cortex-A72 cluster L2 to be reliable at the Pi 4's 1.5 GHz
+ * fmax. Cortex-A72 TRM defaults assume tighter RAM timing than
+ * BCM2711 silicon can meet, so the first cacheable D-side fill after
+ * `SCTLR.C=1` can return corrupt data.
+ *
+ * Bit [0]: Data RAM Latency = 3 cycles (default 0 = 2 cycles)
+ * Bit [5]: Data RAM Setup   = 1 cycle  (default 0 = 0 cycles)
+ *
+ * Every other working bare-metal RPi 4 stack sets this:
+ *   - Canonical raspberrypi/tools/armstubs/armstub8.S
+ *   - Trusted Firmware-A plat/rpi/common/aarch64/plat_helpers.S
+ *     (plat_reset_handler for rpi4)
+ *   - Circle boot/armstub/armstub8.S
+ *
+ * Phoenix-RTOS did NOT have this until 2026-05-17. The post-MMU/cache
+ * crash signature on Pi 4 (EX=4 / ESR=0x02000000 EC=Unknown / FAR=0
+ * / ELR at the first cacheable LDR after the M|C|I write) is
+ * consistent with corrupt L2 RAM reads at the inaugural D-cache
+ * fill.
+ */
+#define L2CTLR_EL1                  S3_1_C11_C0_2
+#define L2CTLR_EL1_DATA_RAM_LATENCY (1UL << 1)   /* 3 cycles */
+#define L2CTLR_EL1_DATA_RAM_SETUP   (1UL << 5)   /* 1 cycle  */
+
+/*
  * A72 erratum 859971 — disable instruction prefetch.
  * Mirrors ATF cortex_a72.h CORTEX_A72_CPUACTLR_EL1_DIS_INSTR_PREFETCH (bit 32).
  * Must be applied at EL3 because S3_1_C15_C2_0 (CPUACTLR_EL1) traps from
@@ -80,23 +106,25 @@
  * incorrect translation. Affects ALL r0p0..r0p3 (Pi 4 is r0p3).
  *
  * Reference: ARM-EPM-012079 Cortex-A72 SDEN, erratum 1319367.
- * Workaround: set CPUACTLR2_EL1.bit[0] = 1.
- * TF-A applies this UNCONDITIONALLY for r0p3 in
- * `lib/cpus/aarch64/cortex_a72.S` (`errata_a72_1319367_wa`).
  *
- * Symptom when missing: after the OS enables MMU and caches, an
- * unrelated translation request can return a stale or wrong TLB
- * result. The OS then reads garbage from what it believes is a
- * valid mapped address — wild pointers, bit-flipped descriptors,
- * etc. EXACTLY the failure mode plo has been hitting on this port.
+ * CORRECT WORKAROUND (2026-05-17 fix): `CPUACTLR_EL1[46] = 1`
+ * (DIS_HW_PAGE_AGGREGATION). SAME register as 859971, different bit.
+ * Confirmed in TF-A `lib/cpus/aarch64/cortex_a72.S errata_a72_1319367_wa`
+ * and Phoenix's own deep-dive doc `docs/plans/a72-errata-sweep.md`
+ * line 98.
  *
- * Phoenix-RTOS's previous cache-enable attempts (M+C, M+C+I) failed
- * with exactly this signature; standard rpi-tools armstub also does
- * not apply 1319367, so any port that exercises EL1/EL2 stage-1
- * translation under load on Pi 4 will likely hit this.
+ * PRIOR BROKEN ENCODING (now removed): Phoenix earlier wrote
+ * `CPUACTLR2_EL1[0]` with `CPUACTLR2_EL1` defined as `S3_1_C15_C2_2`.
+ * That encoding is NOT a documented A72 system register — see ATF
+ * `cortex_a72.h` for the real CPUACTLR2_EL1 encoding (S3_1_C15_C0_4
+ * on A72, used only for CVE-2018-3639 SSBD). Writing to an undefined
+ * impl-defined sysreg can either trap silently (no visible effect)
+ * or hit whatever physical reg lives at that encoding, corrupting
+ * adjacent state. The post-MMU/cache crash signature
+ * (EC=0x00 Unknown reason, FAR=0, ELR=first cacheable load after
+ * SCTLR M|C|I) is consistent with that corruption.
  */
-#define CPUACTLR2_EL1                   S3_1_C15_C2_2
-#define CPUACTLR2_EL1_ERRATA_1319367_WA BIT(0)
+#define CPUACTLR_EL1_ERRATA_1319367_WA (1UL << 46)
 
 #define SPSR_EL3_D         BIT(9)
 #define SPSR_EL3_A         BIT(8)
@@ -216,25 +244,23 @@ start_late:
 	 *     Required for I-cache to be safe to enable on A72 r0..r0p3.
 	 *     RMW to preserve impl-def reset bits.
 	 *     'orr (immediate)' cannot encode (1<<32); materialise it via x1.
-	 */
+	 *
+	 *     2026-05-17: bit 46 (DIS_HW_PAGE_AGGREGATION) added here too —
+	 *     that is the CORRECT 1319367 workaround per TF-A
+	 *     `cortex_a72.S errata_a72_1319367_wa` and Phoenix doc
+	 *     `docs/plans/a72-errata-sweep.md` line 98. The prior code
+	 *     wrote `CPUACTLR2_EL1[0]` with `CPUACTLR2_EL1` = S3_1_C15_C2_2
+	 *     — an undefined A72 sysreg encoding. That write was a no-op
+	 *     at best, silent state corruption at worst. */
 	mrs	x0, CPUACTLR_EL1
 	mov	x1, #CPUACTLR_EL1_DIS_INSTR_PREFETCH
+	orr	x0, x0, x1
+	mov	x1, #CPUACTLR_EL1_ERRATA_1319367_WA
 	orr	x0, x0, x1
 	movz	x1, #0x0180, lsl #48
 	orr	x0, x0, x1	/* C-3v/w: disable L1D prefetch + load-pass-store. */
 	msr	CPUACTLR_EL1, x0
-	uart_putc 49	/* '1' — 859971 done */
-
-	/* (2) Erratum 1319367: CPUACTLR2_EL1[0] = 1. Speculative AT
-	 *     across translation-regime boundary can produce stale TLB
-	 *     results. Affects all r0p0..r0p3 (Pi 4 is r0p3). TF-A
-	 *     applies this unconditionally. Phoenix's previous cache-
-	 *     enable failures (wild-pointer reads after SCTLR.C=1)
-	 *     match the erratum's documented failure mode. */
-	mrs	x0, CPUACTLR2_EL1
-	orr	x0, x0, #CPUACTLR2_EL1_ERRATA_1319367_WA
-	msr	CPUACTLR2_EL1, x0
-	uart_putc 51	/* '3' — 1319367 done */
+	uart_putc 49	/* '1' — 859971 + 1319367 done */
 
 	/* (3) C-3v/w: disable A72 L2/table-walk prefetch before SMPEN. */
 	mrs	x0, CPUECTLR_EL1
@@ -251,6 +277,19 @@ start_late:
 	orr	x0, x0, #CPUECTLR_EL1_SMPEN
 	msr	CPUECTLR_EL1, x0
 	uart_putc 50	/* '2' — SMPEN done */
+
+	/* (5) L2CTLR_EL1 RAM timing for BCM2711 silicon (2026-05-17).
+	 *     Bit 1 = Data RAM Latency 3 cycles, Bit 5 = Data RAM Setup
+	 *     1 cycle. Required for the cluster L2 to return correct data
+	 *     at 1.5 GHz. Every other working RPi 4 bare-metal stack
+	 *     (canonical RPi armstub8, TF-A, Circle) does this. Missing
+	 *     this on Pi 4 is the strongest external signal we found for
+	 *     "first cacheable load after SCTLR M|C|I returns garbage". */
+	mrs	x0, L2CTLR_EL1
+	orr	x0, x0, #L2CTLR_EL1_DATA_RAM_LATENCY
+	orr	x0, x0, #L2CTLR_EL1_DATA_RAM_SETUP
+	msr	L2CTLR_EL1, x0
+	uart_putc 53	/* '5' — L2CTLR timing programmed */
 
 	dsb	sy
 	isb

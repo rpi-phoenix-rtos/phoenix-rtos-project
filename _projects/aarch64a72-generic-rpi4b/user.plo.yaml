@@ -11,7 +11,13 @@ contents:
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
   - app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
   - app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
-  - app {{ env.BOOT_DEVICE }} -x pcie ddr ddr
+  # Merged design (2026-05-17): the usb daemon now owns BCM2711 PCIe
+  # bridge bring-up + VL805 BAR0 programming in-process via libusbxhci's
+  # bcm2711_pcie_initVL805(). The standalone `pcie` daemon is no longer
+  # spawned because xhci's mmap of the outbound window from a different
+  # process hit a per-process bridge-translation race that returned
+  # 0xdead-pattern reads. Single-process matches the canonical
+  # Phoenix-RTOS USB pattern (imx6ull, imxrt106x/117x, ia32).
   - app {{ env.BOOT_DEVICE }} -x usb ddr ddr
   - app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   - go!

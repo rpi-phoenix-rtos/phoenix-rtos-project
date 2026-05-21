@@ -45,4 +45,16 @@
 #define XHCI_BCM2711_PCI_CLASS_CODE    0x0c0330u
 #define XHCI_BCM2711_MMIO_BASE         PCIE_BCM2711_OUTBOUND_CPU_BASE
 
+/* SMP Phase A: enable plo's two-stage secondary release from armstub
+ * spin-table into the kernel. Cores 1-3 wake, park in plo's
+ * secondary_handoff busy-poll, and proceed to the kernel's
+ * _other_core_trap once plo writes kernel entry PA into spin_cpuN.
+ *
+ * The earlier Phase B re-entry pathology (secondaries re-running the
+ * trap routine many times per boot) was observed via UART markers
+ * that have since been stripped, so re-enabling the gate is silent
+ * on UART. Boot stability with secondaries reaching the kernel is
+ * the next thing to verify on real hardware. */
+#define PLO_SMP_ENABLE 1
+
 #endif

@@ -313,20 +313,50 @@ in_el2:
 	mrs	x6, mpidr_el1
 	and	x6, x6, #0x3
 
-	/* SMP Phase D armstub marker: per-CPU 'A'/'B'/'C'/'D' so we can
-	 * verify whether the Pi 4 firmware actually brings up cores 1-3
-	 * (it only brings up cpu0 by default; cpu1-3 need a PSCI CPU_ON
-	 * or a memory poke to start). If we see only 'A' in the log,
-	 * firmware did NOT bring up the secondaries — we need to enable
-	 * them ourselves. */
-	mov	w8, w6
-	add	w8, w8, #'A'
+	/* SMP Phase D armstub marker: three-byte unique pattern
+	 *   '<' + 'Z' + digit per CPU  → "<Z0", "<Z1", "<Z2", "<Z3"
+	 * The '<Z' prefix is essentially impossible in firmware/kernel
+	 * output so the trailing digit reliably attributes each fire. */
+	/* '<' */
+	mov	w8, #'<'
 9700:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
 	ldr	w9, [x9]
 	tst	w9, #UARTFR_TXFF
 	b.ne	9700b
 	ldr	x9, =PL011_TTY_BASE
 	str	w8, [x9]
+	/* 'Z' */
+	mov	w8, #'Z'
+9701:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w9, [x9]
+	tst	w9, #UARTFR_TXFF
+	b.ne	9701b
+	ldr	x9, =PL011_TTY_BASE
+	str	w8, [x9]
+	/* digit */
+	mov	w8, w6
+	add	w8, w8, #'0'
+9702:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w9, [x9]
+	tst	w9, #UARTFR_TXFF
+	b.ne	9702b
+	ldr	x9, =PL011_TTY_BASE
+	str	w8, [x9]
+
+	/* On cpu0 only: clear spin_cpu1/2/3 to 0. The Pi 4 SDRAM contents
+	 * after a power-cycle are not deterministically zero, and the
+	 * previous boot's plo may have left stale entry-point PAs in
+	 * these slots. If secondaries wake from WFE seeing a stale
+	 * non-zero value, they would branch to an obsolete address. */
+	cbnz	x6, 9710f
+	mov	x9, #0xe0
+	str	xzr, [x9]
+	mov	x9, #0xe8
+	str	xzr, [x9]
+	mov	x9, #0xf0
+	str	xzr, [x9]
+	dsb	sy
+9710:
 
 	cbz	x6, primary_cpu
 
@@ -336,14 +366,28 @@ secondary_spin:
 	ldr	x4, [x5, x6, lsl #3]
 	cbz	x4, secondary_spin
 
-	/* SMP Phase D armstub marker after WFE wake: per-CPU 'E'/'F'/'G'
-	 * — verify SEV reaches secondaries that ARE in WFE. */
-	mov	w8, w6
-	add	w8, w8, #'D'
-9701:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	/* SMP Phase D armstub marker after WFE wake.
+	 * Unique 3-byte: ">Y" + digit per CPU. */
+	mov	w8, #'>'
+9710:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
 	ldr	w9, [x9]
 	tst	w9, #UARTFR_TXFF
-	b.ne	9701b
+	b.ne	9710b
+	ldr	x9, =PL011_TTY_BASE
+	str	w8, [x9]
+	mov	w8, #'Y'
+9711:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w9, [x9]
+	tst	w9, #UARTFR_TXFF
+	b.ne	9711b
+	ldr	x9, =PL011_TTY_BASE
+	str	w8, [x9]
+	mov	w8, w6
+	add	w8, w8, #'0'
+9712:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w9, [x9]
+	tst	w9, #UARTFR_TXFF
+	b.ne	9712b
 	ldr	x9, =PL011_TTY_BASE
 	str	w8, [x9]
 

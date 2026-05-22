@@ -312,6 +312,22 @@ in_el2:
 
 	mrs	x6, mpidr_el1
 	and	x6, x6, #0x3
+
+	/* SMP Phase D armstub marker: per-CPU 'A'/'B'/'C'/'D' so we can
+	 * verify whether the Pi 4 firmware actually brings up cores 1-3
+	 * (it only brings up cpu0 by default; cpu1-3 need a PSCI CPU_ON
+	 * or a memory poke to start). If we see only 'A' in the log,
+	 * firmware did NOT bring up the secondaries — we need to enable
+	 * them ourselves. */
+	mov	w8, w6
+	add	w8, w8, #'A'
+9700:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w9, [x9]
+	tst	w9, #UARTFR_TXFF
+	b.ne	9700b
+	ldr	x9, =PL011_TTY_BASE
+	str	w8, [x9]
+
 	cbz	x6, primary_cpu
 
 	adr	x5, spin_cpu0
@@ -319,6 +335,18 @@ secondary_spin:
 	wfe
 	ldr	x4, [x5, x6, lsl #3]
 	cbz	x4, secondary_spin
+
+	/* SMP Phase D armstub marker after WFE wake: per-CPU 'E'/'F'/'G'
+	 * — verify SEV reaches secondaries that ARE in WFE. */
+	mov	w8, w6
+	add	w8, w8, #'D'
+9701:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w9, [x9]
+	tst	w9, #UARTFR_TXFF
+	b.ne	9701b
+	ldr	x9, =PL011_TTY_BASE
+	str	w8, [x9]
+
 	mov	x0, #0
 	mov	x1, #0
 	mov	x2, #0

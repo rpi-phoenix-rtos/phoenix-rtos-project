@@ -313,36 +313,6 @@ in_el2:
 	mrs	x6, mpidr_el1
 	and	x6, x6, #0x3
 
-	/* SMP Phase D armstub marker: three-byte unique pattern
-	 *   '<' + 'Z' + digit per CPU  → "<Z0", "<Z1", "<Z2", "<Z3"
-	 * The '<Z' prefix is essentially impossible in firmware/kernel
-	 * output so the trailing digit reliably attributes each fire. */
-	/* '<' */
-	mov	w8, #'<'
-9700:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
-	ldr	w9, [x9]
-	tst	w9, #UARTFR_TXFF
-	b.ne	9700b
-	ldr	x9, =PL011_TTY_BASE
-	str	w8, [x9]
-	/* 'Z' */
-	mov	w8, #'Z'
-9701:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
-	ldr	w9, [x9]
-	tst	w9, #UARTFR_TXFF
-	b.ne	9701b
-	ldr	x9, =PL011_TTY_BASE
-	str	w8, [x9]
-	/* digit */
-	mov	w8, w6
-	add	w8, w8, #'0'
-9702:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
-	ldr	w9, [x9]
-	tst	w9, #UARTFR_TXFF
-	b.ne	9702b
-	ldr	x9, =PL011_TTY_BASE
-	str	w8, [x9]
-
 	/* On cpu0 only: clear spin_cpu1/2/3 to 0. The Pi 4 SDRAM contents
 	 * after a power-cycle are not deterministically zero, and the
 	 * previous boot's plo may have left stale entry-point PAs in
@@ -365,31 +335,6 @@ secondary_spin:
 	wfe
 	ldr	x4, [x5, x6, lsl #3]
 	cbz	x4, secondary_spin
-
-	/* SMP Phase D armstub marker after WFE wake.
-	 * Unique 3-byte: ">Y" + digit per CPU. */
-	mov	w8, #'>'
-9710:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
-	ldr	w9, [x9]
-	tst	w9, #UARTFR_TXFF
-	b.ne	9710b
-	ldr	x9, =PL011_TTY_BASE
-	str	w8, [x9]
-	mov	w8, #'Y'
-9711:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
-	ldr	w9, [x9]
-	tst	w9, #UARTFR_TXFF
-	b.ne	9711b
-	ldr	x9, =PL011_TTY_BASE
-	str	w8, [x9]
-	mov	w8, w6
-	add	w8, w8, #'0'
-9712:	ldr	x9, =(PL011_TTY_BASE + UARTFR_OFFSET)
-	ldr	w9, [x9]
-	tst	w9, #UARTFR_TXFF
-	b.ne	9712b
-	ldr	x9, =PL011_TTY_BASE
-	str	w8, [x9]
 
 	mov	x0, #0
 	mov	x1, #0

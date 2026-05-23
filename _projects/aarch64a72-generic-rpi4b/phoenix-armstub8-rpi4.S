@@ -212,6 +212,39 @@ start_late:
 	mov	x28, x0
 	mrs	x7, mpidr_el1
 	and	x7, x7, #0x3
+
+	/* SMP-D-2 diagnostic: very-first-instruction marker per CPU.
+	 * Prints unique 3-byte sequence ";X<digit>" — semicolon is rare
+	 * in firmware/kernel output so the trailing digit reliably
+	 * attributes each fire. If only ";X0" appears (cpu0 only), the
+	 * Pi 4 firmware doesn't deliver secondaries to armstub _start
+	 * and we need a kernel-driven power-up sequence instead.
+	 *
+	 * Runs at EL3 (before the EL3→EL2 drop). PL011 should be alive
+	 * (firmware programs it for serial console output before our
+	 * armstub gets control). Clobbers x8, x9; x7 (cpu id) preserved. */
+	mov	w9, #';'
+9750:	ldr	x8, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w8, [x8]
+	tst	w8, #UARTFR_TXFF
+	b.ne	9750b
+	ldr	x8, =PL011_TTY_BASE
+	str	w9, [x8]
+	mov	w9, #'X'
+9751:	ldr	x8, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w8, [x8]
+	tst	w8, #UARTFR_TXFF
+	b.ne	9751b
+	ldr	x8, =PL011_TTY_BASE
+	str	w9, [x8]
+	mov	w9, w7
+	add	w9, w9, #'0'
+9752:	ldr	x8, =(PL011_TTY_BASE + UARTFR_OFFSET)
+	ldr	w8, [x8]
+	tst	w8, #UARTFR_TXFF
+	b.ne	9752b
+	ldr	x8, =PL011_TTY_BASE
+	str	w9, [x8]
 	mov x0, LOCAL_CONTROL
 	str wzr, [x0]
 	mov w1, 0x80000000

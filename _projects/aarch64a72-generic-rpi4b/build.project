@@ -13,6 +13,15 @@ RPI4B_FIRMWARE_DIR="${RPI4B_FIRMWARE_DIR:-}"
 RPI4B_QEMU_MEMORY_SIZE="${RPI4B_QEMU_MEMORY_SIZE:-3b400000}"
 export PCI_EXPRESS_BCM2711_INDEXED_CFG=y
 
+#
+# lwIP configuration — only the GENET driver is supported on Pi 4.
+# WiFi/IPsec are parked behind the Ethernet tiers; disable their
+# subtrees so the lwip build doesn't pull in their dependencies.
+#
+export LWIPOPTS_DIR="$(pwd)/_projects/aarch64a72-generic-rpi4b/lwip"
+export LWIP_IPSEC_BUILD=no
+export LWIP_WIFI_BUILD=no
+
 if [ -n "${RPI4B_DTB_PATH:-}" ]; then
 	RPI4B_DTB_SRC="${RPI4B_DTB_PATH}"
 elif [ -f "${PROJECT_PATH}/${RPI4B_DTB_IMG}" ]; then

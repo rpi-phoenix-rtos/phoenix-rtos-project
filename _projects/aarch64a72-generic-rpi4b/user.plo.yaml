@@ -11,17 +11,16 @@ contents:
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
   - app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
   - app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
-  # Merged design (2026-05-17): the usb daemon now owns BCM2711 PCIe
-  # bridge bring-up + VL805 BAR0 programming in-process via libusbxhci's
-  # bcm2711_pcie_initVL805(). The standalone `pcie` daemon is no longer
-  # spawned because xhci's mmap of the outbound window from a different
-  # process hit a per-process bridge-translation race that returned
-  # 0xdead-pattern reads. Single-process matches the canonical
-  # Phoenix-RTOS USB pattern (imx6ull, imxrt106x/117x, ia32).
-  - app {{ env.BOOT_DEVICE }} -x usb ddr ddr
+  # BCM2711 PCIe bridge bring-up only — exits after the bridge is up.
+  # The xHCI controller is brought up later by the lwip-port-embedded
+  # USB host stack (USB_HCD_PCIE_DRIVE_ONLY path). Keeping the bridge
+  # init in a separate boot-time daemon preserves the working in-process
+  # bridge bring-up while a different process owns the controller, which
+  # is the only configuration that has produced events on the polled
+  # event ring on Pi 4. See memory:pi4-xhci-crcr-stale-after-hcrst.
+  - app {{ env.BOOT_DEVICE }} -x usb;--bridge-only ddr ddr
   # GENET Ethernet — launched with one netif cfg arg. Phys 0xFD580000,
   # IRQs 189 (general) / 190 (ring), PHY BCM54213PE at MDIO addr 0x01.
-  # Tier 1: link-up only (no DMA, no IRQ wiring).
   - app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
   - app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   - go!

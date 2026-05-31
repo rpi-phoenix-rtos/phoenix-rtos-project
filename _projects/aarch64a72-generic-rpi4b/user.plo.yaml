@@ -11,6 +11,10 @@ contents:
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
   - app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
   - app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
+  # POSIX server: anonymous pipes, /dev/{null,zero,urandom,full}, ptys,
+  # tmpfile, event queues. Without it pipe() is -ENOSYS, so psh pipelines
+  # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
+  - app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
   # BCM2711 PCIe bridge bring-up only — exits after the bridge is up.
   # The xHCI controller is brought up later by the lwip-port-embedded
   # USB host stack (USB_HCD_PCIE_DRIVE_ONLY path). Keeping the bridge

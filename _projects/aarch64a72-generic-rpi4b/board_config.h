@@ -34,6 +34,10 @@
 #define PL011_TTY_CLOCK 48000000u
 #define PL011_TTY_EARLY_VADDR 0xffffffffffe00000ull
 #define PL011_TTY_KBD_PATH "/dev/kbd0"
+/* TODO(#126): throwaway USB-mouse bring-up reader in pl011-tty — opens
+ * /dev/mouse to start usbmouse polling and logs raw boot-mouse reports to UART
+ * for validation. Remove once a real pointer consumer exists. */
+#define PL011_TTY_MOUSE_PATH "/dev/mouse"
 #define PCIE_BCM2711_HOST_BASE 0xfd500000u
 #define PCIE_BCM2711_HOST_SIZE 0x00010000u
 #define PCIE_BCM2711_OUTBOUND_CPU_BASE  0x600000000ull

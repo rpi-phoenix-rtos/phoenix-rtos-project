@@ -22,6 +22,14 @@ export LWIPOPTS_DIR="$(pwd)/_projects/aarch64a72-generic-rpi4b/lwip"
 export LWIP_IPSEC_BUILD=no
 export LWIP_WIFI_BUILD=no
 
+#
+# Userspace ports (phoenix-rtos-ports). busybox is the first port — see
+# ports.yaml. BUSYBOX_CONFIG points the busybox port.def.sh at this
+# project's config. The ports stage runs only when build.sh is invoked
+# with the `ports` arg (the fast rebuild path skips it).
+#
+export BUSYBOX_CONFIG="${PROJECT_PATH}/busybox_config"
+
 if [ -n "${RPI4B_DTB_PATH:-}" ]; then
 	RPI4B_DTB_SRC="${RPI4B_DTB_PATH}"
 elif [ -f "${PROJECT_PATH}/${RPI4B_DTB_IMG}" ]; then

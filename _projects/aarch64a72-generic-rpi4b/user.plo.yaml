@@ -15,6 +15,14 @@ contents:
   # tmpfile, event queues. Without it pipe() is -ENOSYS, so psh pipelines
   # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
   - app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
+  # BCM2711 EMMC2 SD-card block driver — bring-up/probe (no -r root mount yet).
+  # TODO(#119): temporarily out of the boot while we bring up SD-card BOOT.
+  # The Pi now boots from this same microSD via VideoCore firmware + EMMC2, so
+  # the driver must coexist with / re-init a controller the firmware already
+  # used; re-add and validate that separately (ACMD41 op-cond capture) once SD
+  # boot is solid. Inits EMMC2 (Arasan SDHCI), detects the card, reads the MBR,
+  # registers /dev/mmcblk0[pN]; future rootfs mount adds `;-r;/dev/mmcblk0p2:ext2`.
+  # - app {{ env.BOOT_DEVICE }} -x bcm2711-emmc ddr ddr
   # BCM2711 PCIe bridge bring-up only — exits after the bridge is up.
   # The xHCI controller is brought up later by the lwip-port-embedded
   # USB host stack (USB_HCD_PCIE_DRIVE_ONLY path). Keeping the bridge

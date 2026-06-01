@@ -23,14 +23,18 @@ contents:
   # boot is solid. Inits EMMC2 (Arasan SDHCI), detects the card, reads the MBR,
   # registers /dev/mmcblk0[pN]; future rootfs mount adds `;-r;/dev/mmcblk0p2:ext2`.
   # - app {{ env.BOOT_DEVICE }} -x bcm2711-emmc ddr ddr
-  # TODO(#129) Step 1 — MERGED-CONFIG TEST: the separate `usb --bridge-only`
-  # daemon is DISABLED so the lwip-embedded USB process does the FULL bring-up
-  # in one process (bridge + controller), with FIX-19 live and no rig handoff.
-  # This tests whether the framework's own bring-up now lands its first event
-  # (the PoC's bridge/drive split + rig exist because the merged path failed
-  # BEFORE the Stage event-ring fixes + with FIX-19 inert under DRIVE_ONLY).
-  # Restore this line + the two setenvs in lwip port/main.c to fall back to rig.
-  # - app {{ env.BOOT_DEVICE }} -x usb;--bridge-only ddr ddr
+  # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
+  # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
+  # bring-up and hosts the device stack in its OWN process/heap (isolating its
+  # DMA pool + driver allocations from lwip, so a USB-side bug can't corrupt the
+  # lwIP mbox / kill the network — the #121 UAF). usbkbd/usbmouse are separate
+  # driver processes that attach to the daemon (creating /dev/kbd0, /dev/mouse0).
+  # Started before lwip so USB bring-up runs early. (No `--bridge-only`: that was
+  # the old split where a parked daemon did only the bridge; the merged in-process
+  # bring-up is now deterministic — see docs/notes/2026-06-01-usb-rearchitecture-plan.md.)
+  - app {{ env.BOOT_DEVICE }} -x usb ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x usbkbd ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x usbmouse ddr ddr
   # GENET Ethernet — launched with one netif cfg arg. Phys 0xFD580000,
   # IRQs 189 (general) / 190 (ring), PHY BCM54213PE at MDIO addr 0x01.
   - app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr

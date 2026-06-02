@@ -1,0 +1,238 @@
+#!/bin/bash
+#
+# Shell script for building aarch64a72-generic-rpi4b project
+#
+# Copyright 2026 Phoenix Systems
+#
+
+[ "${BASH_SOURCE[0]}" -ef "$0" ] && echo "You should source this script, not execute it!" && exit 1
+
+RPI4B_DTB_IMG="bcm2711-rpi-4-b.dtb"
+RPI4B_DTB_SRC=""
+RPI4B_FIRMWARE_DIR="${RPI4B_FIRMWARE_DIR:-}"
+RPI4B_QEMU_MEMORY_SIZE="${RPI4B_QEMU_MEMORY_SIZE:-3b400000}"
+export PCI_EXPRESS_BCM2711_INDEXED_CFG=y
+
+#
+# lwIP configuration — only the GENET driver is supported on Pi 4.
+# WiFi/IPsec are parked behind the Ethernet tiers; disable their
+# subtrees so the lwip build doesn't pull in their dependencies.
+#
+export LWIPOPTS_DIR="$(pwd)/_projects/aarch64a72-generic-rpi4b/lwip"
+export LWIP_IPSEC_BUILD=no
+export LWIP_WIFI_BUILD=no
+
+#
+# Userspace ports (phoenix-rtos-ports). busybox is the first port — see
+# ports.yaml. BUSYBOX_CONFIG points the busybox port.def.sh at this
+# project's config. The ports stage runs only when build.sh is invoked
+# with the `ports` arg (the fast rebuild path skips it).
+#
+export BUSYBOX_CONFIG="${PROJECT_PATH}/busybox_config"
+
+if [ -n "${RPI4B_DTB_PATH:-}" ]; then
+	RPI4B_DTB_SRC="${RPI4B_DTB_PATH}"
+elif [ -f "${PROJECT_PATH}/${RPI4B_DTB_IMG}" ]; then
+	RPI4B_DTB_SRC="${PROJECT_PATH}/${RPI4B_DTB_IMG}"
+fi
+
+if [ -n "${RPI4B_FIRMWARE_DIR:-}" ]; then
+	RPI4B_FIRMWARE_DIR="${RPI4B_FIRMWARE_DIR}"
+elif [ -d "${PROJECT_PATH}/firmware" ]; then
+	RPI4B_FIRMWARE_DIR="${PROJECT_PATH}/firmware"
+fi
+
+if [ -n "${RPI4B_DTB_SRC}" ]; then
+	export RPI4B_HAVE_DTB=1
+else
+	unset RPI4B_HAVE_DTB
+fi
+
+
+fastlane_stageRootDummyfs() {
+	cp -a "${PREFIX_PROG_STRIPPED}dummyfs" "${PREFIX_PROG_STRIPPED}dummyfs-root"
+}
+
+
+fastlane_stagePshApplets() {
+	cp -a "${PREFIX_PROG_STRIPPED}psh" "${PREFIX_PROG_STRIPPED}mkdir"
+	cp -a "${PREFIX_PROG_STRIPPED}psh" "${PREFIX_PROG_STRIPPED}bind"
+}
+
+
+rpi4b_stageDtb() {
+	local dst="$1"
+
+	if [ -z "${RPI4B_DTB_SRC}" ]; then
+		return 0
+	fi
+
+	cp -a "${RPI4B_DTB_SRC}" "${dst}"
+
+	if [ -n "${RPI4B_QEMU_MEMORY_SIZE}" ]; then
+		if ! command -v fdtput >/dev/null 2>&1; then
+			b_log "RPI4B_QEMU_MEMORY_SIZE requires fdtput in PATH"
+			return 1
+		fi
+
+		if ! fdtput -t x "${dst}" /memory@0 reg 0 0 "${RPI4B_QEMU_MEMORY_SIZE}"; then
+			b_log "Failed to apply Pi 4 QEMU-only memory patch to ${dst}"
+			return 1
+		fi
+	fi
+}
+
+
+b_build_project() {
+	local rootfs_dtb="${PREFIX_ROOTFS}/etc/system.dtb"
+
+	fastlane_stageRootDummyfs
+	fastlane_stagePshApplets
+
+	if [ -n "${RPI4B_DTB_SRC}" ]; then
+		mkdir -p "${PREFIX_ROOTFS}/etc"
+		if ! rpi4b_stageDtb "${rootfs_dtb}"; then
+			return 1
+		fi
+	else
+		rm -f "${rootfs_dtb}"
+	fi
+}
+
+
+rpi4b_buildArmstub() {
+	local src="${PROJECT_PATH}/phoenix-armstub8-rpi4.S"
+	local outdir="${PREFIX_BUILD}/armstub"
+	local obj="${outdir}/phoenix-armstub8-rpi4.o"
+	local elf="${outdir}/phoenix-armstub8-rpi4.elf"
+	local bin="${outdir}/phoenix-armstub8-rpi4.bin"
+	local objcopy="${CROSS}objcopy"
+
+	mkdir -p "${outdir}"
+
+	"${CC}" -c -nostdlib -ffreestanding "${src}" -o "${obj}"
+	"${LD}" -nostdlib -Ttext=0x0 -o "${elf}" "${obj}"
+	"${objcopy}" -O binary "${elf}" "${bin}"
+
+	printf '%s\n' "${bin}"
+}
+
+
+rpi4b_buildKernelImage() {
+	local plo_img="$1"
+	local src="${PROJECT_PATH}/phoenix-kernel8-reloc.S"
+	local lds="${PROJECT_PATH}/phoenix-kernel8-reloc.lds"
+	local outdir="${PREFIX_BUILD}/kernel8-reloc"
+	local tramp_obj="${outdir}/phoenix-kernel8-reloc.o"
+	local payload_bin="${outdir}/phoenix-plo-payload.bin"
+	local payload_obj="${outdir}/phoenix-plo-payload.o"
+	local elf="${outdir}/phoenix-kernel8-reloc.elf"
+	local bin="${outdir}/kernel8.img"
+	local objcopy="${CROSS}objcopy"
+
+	mkdir -p "${outdir}"
+	cp -a "${plo_img}" "${payload_bin}"
+
+	"${CC}" -c -nostdlib -ffreestanding "${src}" -o "${tramp_obj}"
+
+	(
+		cd "${outdir}" || exit 1
+		"${objcopy}" -I binary -O elf64-littleaarch64 -B aarch64 \
+			--rename-section .data=.payload,alloc,load,readonly,data,contents \
+			--redefine-sym _binary_phoenix_plo_payload_bin_start=phoenix_plo_payload_start \
+			--redefine-sym _binary_phoenix_plo_payload_bin_end=phoenix_plo_payload_end \
+			--redefine-sym _binary_phoenix_plo_payload_bin_size=phoenix_plo_payload_size \
+			"$(basename "${payload_bin}")" "$(basename "${payload_obj}")"
+	)
+
+	"${LD}" -nostdlib -T "${lds}" -o "${elf}" "${tramp_obj}" "${payload_obj}"
+	"${objcopy}" -O binary "${elf}" "${bin}"
+
+	printf '%s\n' "${bin}"
+}
+
+
+rpi4b_stageFirmware() {
+	local bootdir="$1"
+	local file=""
+	local required=(
+		start4.elf
+		fixup4.dat
+	)
+	local required_overlays=(
+		miniuart-bt.dtbo
+	)
+	local optional=(
+		start4db.elf
+		fixup4db.dat
+		start4cd.elf
+		fixup4cd.dat
+	)
+
+	if [ -z "${RPI4B_FIRMWARE_DIR}" ]; then
+		return 0
+	fi
+
+	for file in "${required[@]}"; do
+		if [ ! -f "${RPI4B_FIRMWARE_DIR}/${file}" ]; then
+			b_log "Pi 4 firmware dir is missing required file ${file}"
+			return 1
+		fi
+
+		cp -a "${RPI4B_FIRMWARE_DIR}/${file}" "${bootdir}/${file}"
+	done
+
+	for file in "${optional[@]}"; do
+		if [ -f "${RPI4B_FIRMWARE_DIR}/${file}" ]; then
+			cp -a "${RPI4B_FIRMWARE_DIR}/${file}" "${bootdir}/${file}"
+		fi
+	done
+
+	mkdir -p "${bootdir}/overlays"
+	for file in "${required_overlays[@]}"; do
+		if [ ! -f "${RPI4B_FIRMWARE_DIR}/overlays/${file}" ]; then
+			b_log "Pi 4 firmware dir is missing required overlay ${file}"
+			return 1
+		fi
+
+		cp -a "${RPI4B_FIRMWARE_DIR}/overlays/${file}" "${bootdir}/overlays/${file}"
+	done
+}
+
+
+b_image_project() {
+	local bootdir="${PREFIX_BOOT}/rpi4b"
+	local plo_img="${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img"
+	local kernel_img=""
+	local loader_img="${PREFIX_BOOT}/loader.disk"
+	local armstub_img=""
+	local loader_size=""
+	local ram_bank_size=$((0x08000000))
+
+	mkdir -p "${bootdir}"
+	armstub_img="$(rpi4b_buildArmstub)"
+	kernel_img="$(rpi4b_buildKernelImage "${plo_img}")"
+
+	cp -a "${PROJECT_PATH}/config.txt" "${bootdir}/config.txt"
+	cp -a "${kernel_img}" "${bootdir}/kernel8.img"
+	cp -a "${loader_img}" "${bootdir}/loader.disk"
+	cp -a "${armstub_img}" "${bootdir}/phoenix-armstub8-rpi4.bin"
+
+	if ! rpi4b_stageFirmware "${bootdir}"; then
+		return 1
+	fi
+
+	loader_size=$(wc -c < "${loader_img}")
+	if [ "${loader_size}" -gt "${ram_bank_size}" ]; then
+		b_log "loader.disk (${loader_size} bytes) exceeds generic plo RAM window (${ram_bank_size} bytes)"
+		return 1
+	fi
+
+	if [ -n "${RPI4B_DTB_SRC}" ]; then
+		if ! rpi4b_stageDtb "${bootdir}/${RPI4B_DTB_IMG}"; then
+			return 1
+		fi
+	fi
+
+	b_log "The images have been built for the ${TARGET} platform"
+}

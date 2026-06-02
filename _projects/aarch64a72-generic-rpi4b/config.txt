@@ -1,0 +1,34 @@
+# Phoenix-RTOS Raspberry Pi 4 early bring-up
+#
+# This is only the first firmware-facing staging config.
+# DTB staging and firmware-handoff support are still incomplete.
+
+arm_64bit=1
+armstub=phoenix-armstub8-rpi4.bin
+kernel=kernel8.img
+initramfs loader.disk 0x08000000
+enable_uart=1
+uart_2ndstage=1
+init_uart_baud=115200
+init_uart_clock=48000000
+dtoverlay=miniuart-bt
+force_turbo=1
+core_freq=250
+# Skip the firmware bootloader delay (default 1 s) and rainbow splash —
+# we are netbooting / development-running, no need for user interaction
+# windows.
+boot_delay=0
+boot_delay_ms=0
+disable_poe_fan=1
+# Lock GPU reserve at the firmware-minimum that still supports HDMI + mailbox + framebuffer.
+# This frees as much DRAM for ARM as the Pi 4 layout allows. Note: `total_mem` cannot
+# enlarge memory — it only caps it, so we omit it. Default behaviour is "use all DRAM".
+# Pi 4 4GB layout (with gpu_mem=76):
+#   0x00000000 - 0x3b3fffff   948 MB   ARM DRAM (chunk 1)
+#   0x3b400000 - 0x3fffffff    76 MB   GPU heap + framebuffer (VC4 owns, ARM stays Device)
+#   0x40000000 - 0xfbffffff  3008 MB   ARM DRAM (chunk 2) — until now unmapped on ARM
+#   0xfc000000 - 0xffffffff    64 MB   BCM2711 peripherals (low-peri mode, MMIO)
+gpu_mem=76
+hdmi_force_hotplug=1
+disable_overscan=1
+disable_splash=1

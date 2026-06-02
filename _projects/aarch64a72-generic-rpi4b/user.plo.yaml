@@ -1,0 +1,42 @@
+magic: '{{ env.MAGIC_USER_SCRIPT }}'
+size: 0x1000
+is_relative: True
+
+contents:
+  - kernel {{ env.BOOT_DEVICE }}
+  - if: '{{ env.RPI4B_HAVE_DTB | default(false) }}'
+    str: blob {{ env.BOOT_DEVICE }} /etc/system.dtb ddr
+  - app {{ env.BOOT_DEVICE }} -x dummyfs-root ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x dummyfs;-N;devfs;-D ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
+  # POSIX server: anonymous pipes, /dev/{null,zero,urandom,full}, ptys,
+  # tmpfile, event queues. Without it pipe() is -ENOSYS, so psh pipelines
+  # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
+  - app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
+  # BCM2711 EMMC2 SD-card block driver — bring-up/probe (no -r root mount yet).
+  # TODO(#119): temporarily out of the boot while we bring up SD-card BOOT.
+  # The Pi now boots from this same microSD via VideoCore firmware + EMMC2, so
+  # the driver must coexist with / re-init a controller the firmware already
+  # used; re-add and validate that separately (ACMD41 op-cond capture) once SD
+  # boot is solid. Inits EMMC2 (Arasan SDHCI), detects the card, reads the MBR,
+  # registers /dev/mmcblk0[pN]; future rootfs mount adds `;-r;/dev/mmcblk0p2:ext2`.
+  # - app {{ env.BOOT_DEVICE }} -x bcm2711-emmc ddr ddr
+  # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
+  # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
+  # bring-up and hosts the device stack in its OWN process/heap (isolating its
+  # DMA pool + driver allocations from lwip, so a USB-side bug can't corrupt the
+  # lwIP mbox / kill the network — the #121 UAF). usbkbd/usbmouse are separate
+  # driver processes that attach to the daemon (creating /dev/kbd0, /dev/mouse0).
+  # Started before lwip so USB bring-up runs early. (No `--bridge-only`: that was
+  # the old split where a parked daemon did only the bridge; the merged in-process
+  # bring-up is now deterministic — see docs/notes/2026-06-01-usb-rearchitecture-plan.md.)
+  - app {{ env.BOOT_DEVICE }} -x usb ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x usbkbd ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x usbmouse ddr ddr
+  # GENET Ethernet — launched with one netif cfg arg. Phys 0xFD580000,
+  # IRQs 189 (general) / 190 (ring), PHY BCM54213PE at MDIO addr 0x01.
+  - app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
+  - app {{ env.BOOT_DEVICE }} -x psh ddr ddr
+  - go!

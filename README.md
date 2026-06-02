@@ -1,5 +1,10 @@
 # phoenix-rtos-project
 
+> Fork warning:
+> This fork contains AI-generated changes for the Phoenix RTOS Raspberry Pi
+> port. These changes have not been fully reviewed and have not been fully
+> tested.
+
 [![ci](https://github.com/phoenix-rtos/phoenix-rtos-project/actions/workflows/ci.yml/badge.svg)](https://github.com/phoenix-rtos/phoenix-rtos-project/actions/workflows/ci.yml)
 [![nightly](https://github.com/phoenix-rtos/phoenix-rtos-project/actions/workflows/nightly.yml/badge.svg)](https://github.com/phoenix-rtos/phoenix-rtos-project/actions/workflows/nightly.yml)
 

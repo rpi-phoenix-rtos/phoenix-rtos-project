@@ -1,0 +1,9 @@
+loader:
+  size: 0x2000000 # 32 MB
+  block_size: 512
+  partitions:
+    - name: plo
+      offs: 0x0
+      size: 0x200000
+    - name: kernel
+      offs: 0x200000

@@ -1,0 +1,22 @@
+size: 0x1000
+is_relative: False
+
+contents:
+  # Pi 4 4GB layout (with config.txt gpu_mem=76):
+  #   ddr  : 0x00400000-0x3b3fffff  chunk 1 (944 MB usable, above plo image)
+  #   GPU  : 0x3b400000-0x3fffffff  VC4-owned (NOT mapped in syspage)
+  #   ddrh : 0x40000000-0xfbffffff  chunk 2 (3008 MB) — added 2026-05-12 to
+  #          unlock the upper-3 GB DRAM for kernel allocations. plo already
+  #          maps these PAs as Normal-WB-Cacheable in hal_memoryInit
+  #          (SIZE_DDR raised to 0xfc000000).
+  - map ddr 0x00400000 0x3b400000 rwx
+  - map ddrh 0x40000000 0xfc000000 rwx
+  - phfs ram0 4.0 raw
+
+  - if: '{{ not(env.RAM_SCRIPT) | default(false) }}'
+    action: call
+    set_base: True
+    device: '{{ env.BOOT_DEVICE }}'
+    filename: user.plo
+    offset: '{{ nvm.loader.kernel.offs }}'
+    target_magic: '{{ env.MAGIC_USER_SCRIPT }}'

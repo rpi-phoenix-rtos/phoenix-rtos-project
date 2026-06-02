@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# Shell script for building aarch64a72-generic project
+#
+# Copyright 2026 Phoenix Systems
+#
+[ "${BASH_SOURCE[0]}" -ef "$0" ] && echo "You should source this script, not execute it!" && exit 1
+
+. "_targets/build.common"
+
+CROSS=aarch64-phoenix-
+
+export SIZE_PAGE=$((0x1000))
+export BOOT_DEVICE="ram0"
+export MAGIC_USER_SCRIPT="dabaabad"
+
+
+b_build_project() {
+	return 0
+}
+
+
+b_build_target() {
+	b_log "Building $TARGET project"
+	b_log "Building phoenix-rtos-loader"
+
+	image_builder.py script --nvm "$NVM_CONFIG" --script "$PLO_SCRIPT_PREINIT" --out script.plo
+	RAM_SCRIPT=1 image_builder.py script --nvm "$NVM_CONFIG" --script "$PLO_SCRIPT_PREINIT" --out script-ram.plo
+	make -C plo base
+
+	cp -a "${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.elf" "${PREFIX_BOOT}/plo.elf"
+}
+
+
+b_image_target() {
+	image_builder.py -v partition --nvm "$NVM_CONFIG" --name kernel --script "$PLO_SCRIPT_USER"
+	image_builder.py -v disk --nvm "$NVM_CONFIG" --name loader --part "plo=${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img" --out "loader.disk"
+}
+
+
+b_test_target() {
+	b_log "Build and install tests in the phoenix-rtos filesystem"
+	make -C "phoenix-rtos-tests" all install
+}

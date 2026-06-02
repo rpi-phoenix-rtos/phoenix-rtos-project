@@ -61,4 +61,13 @@
  * the next thing to verify on real hardware. */
 #define PLO_SMP_ENABLE 1
 
+/* TD-14/observability: the kernel klog ring (default 2 KB) is drained to the
+ * UART + HDMI fbcon only by userspace libklog/pl011-tty, which attaches LATE in
+ * boot. With 2 KB the early-boot lib_printf output overflows the ring before the
+ * drain starts, so a NON-DETERMINISTIC amount of early kernel log survives to be
+ * replayed — the confirmed cause of "UART/HDMI show long logs on some boots,
+ * short on others." Size the ring to hold the entire pre-drain boot log so every
+ * boot replays the same complete log to both UART and HDMI. */
+#define KERNEL_LOG_SIZE (64 * 1024)
+
 #endif

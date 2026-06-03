@@ -27,14 +27,16 @@ contents:
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its
   # DMA pool + driver allocations from lwip, so a USB-side bug can't corrupt the
-  # lwIP mbox / kill the network — the #121 UAF). usbkbd/usbmouse are separate
-  # driver processes that attach to the daemon (creating /dev/kbd0, /dev/mouse0).
+  # lwIP mbox / kill the network — the #121 UAF). The HID device drivers
+  # (usbkbd, usbmouse) are linked INTO the daemon as internal host-side drivers
+  # via USB_HOSTDRV_LIBS in build-core-aarch64a72-generic.sh — they create
+  # /dev/kbd0 and /dev/mouse0 from within this one process. (That build sets
+  # -DUSB_INTERNAL_ONLY, so there is no separate-client connect path; a standalone
+  # `-x usbkbd`/`-x usbmouse` would just fail with "unsupported usb_msg type: 0".)
   # Started before lwip so USB bring-up runs early. (No `--bridge-only`: that was
   # the old split where a parked daemon did only the bridge; the merged in-process
   # bring-up is now deterministic — see docs/notes/2026-06-01-usb-rearchitecture-plan.md.)
   - app {{ env.BOOT_DEVICE }} -x usb ddr ddr
-  - app {{ env.BOOT_DEVICE }} -x usbkbd ddr ddr
-  - app {{ env.BOOT_DEVICE }} -x usbmouse ddr ddr
   # GENET Ethernet — launched with one netif cfg arg. Phys 0xFD580000,
   # IRQs 189 (general) / 190 (ring), PHY BCM54213PE at MDIO addr 0x01.
   - app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr

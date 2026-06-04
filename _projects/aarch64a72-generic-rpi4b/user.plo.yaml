@@ -15,14 +15,21 @@ contents:
   # tmpfile, event queues. Without it pipe() is -ENOSYS, so psh pipelines
   # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
   - app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
-  # BCM2711 EMMC2 SD-card block driver (#119, working under SD-boot 2026-06-03).
-  # Inits EMMC2 (Arasan SDHCI), re-inits the controller the VideoCore firmware
-  # already used to boot, identifies the card, reads the MBR, and registers
-  # /dev/mmcblk0[pN]. Probe-only for now (no -r); the persistent ext2 root mount
-  # (#120) will add `;-r;/dev/mmcblk0p2:ext2`. NB on a card-absent boot (e.g.
-  # netboot with the slot empty) init fails gracefully after a bounded retry and
-  # the rest of the boot continues.
-  - app {{ env.BOOT_DEVICE }} -x bcm2711-emmc ddr ddr
+  # BCM2711 EMMC2 SD-card block driver (#119/#120). Inits EMMC2 (Arasan SDHCI),
+  # identifies the card, reads the MBR (PIO), registers /dev/mmcblk0[pN].
+  #
+  # TWO BUILD VARIANTS, selected by RPI4B_VARIANT (rebuild-rpi4b-fast.sh --variant):
+  #   sd      -> `-r /dev/mmcblk0p2:ext2`: mount the ext2 partition as root (#120).
+  #   netboot -> probe-only (no -r): card-out safe, for net-booted device bring-up.
+  # On a card-absent boot the driver bails gracefully (-ENODEV) and boot continues.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc;-r;/dev/mmcblk0p2:ext2 ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc ddr ddr
+  # SoC thermal/throttle telemetry: reads the VideoCore property mailbox and
+  # registers /dev/thermal (milli-C) + /dev/throttled (bitfield). Needs devfs
+  # bound at /dev (above). Telemetry only - the firmware owns the thermal trip.
+  - app {{ env.BOOT_DEVICE }} -x rpi4-thermal ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

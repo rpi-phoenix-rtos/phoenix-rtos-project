@@ -30,6 +30,8 @@ contents:
   # registers /dev/thermal (milli-C) + /dev/throttled (bitfield). Needs devfs
   # bound at /dev (above). Telemetry only - the firmware owns the thermal trip.
   - app {{ env.BOOT_DEVICE }} -x rpi4-thermal ddr ddr
+  # Hardware RNG (BCM2711 iproc RNG200): registers /dev/hwrng. Needs devfs at /dev.
+  - app {{ env.BOOT_DEVICE }} -x rpi4-hwrng ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

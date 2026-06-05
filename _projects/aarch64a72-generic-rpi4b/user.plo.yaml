@@ -6,24 +6,37 @@ contents:
   - kernel {{ env.BOOT_DEVICE }}
   - if: '{{ env.RPI4B_HAVE_DTB | default(false) }}'
     str: blob {{ env.BOOT_DEVICE }} /etc/system.dtb ddr
-  - app {{ env.BOOT_DEVICE }} -x dummyfs-root ddr ddr
+  # Root namespace ("/"):
+  #   netboot -> dummyfs-root provides a RAM "/" (no SD root).
+  #   sd      -> the ext2 partition becomes "/" (mounted below, before the
+  #              /-dependent services). dummyfs-root must NOT run in the sd
+  #              variant or it would own "/" and the ext2 mount's
+  #              portRegister("/") would fail with -EEXIST (#120).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x dummyfs-root ddr ddr
+  # devfs registered as the named port "devfs". create_dev(/dev/...) targets this
+  # port directly (strips the /dev prefix), so device nodes can be created before
+  # "/" or the /dev bind exist -- which is what lets the sd variant mount its root
+  # from the SD card below without a prior dummyfs-root.
   - app {{ env.BOOT_DEVICE }} -x dummyfs;-N;devfs;-D ddr ddr
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
+  # sd: mount the ext2 partition as "/" HERE, before mkdir/bind/posixsrv (which
+  # need "/"). The driver create_dev's /dev/mmcblk0pN via the "devfs" port,
+  # resolves it (literal path fails pre-bind -> falls back to "devfs/<name>"),
+  # mounts ext2, and portRegister("/") succeeds (no dummyfs-root). (#120)
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc;-r;/dev/mmcblk0p2:ext2 ddr ddr
   - app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
   - app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
   # POSIX server: anonymous pipes, /dev/{null,zero,urandom,full}, ptys,
   # tmpfile, event queues. Without it pipe() is -ENOSYS, so psh pipelines
   # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
   - app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
-  # BCM2711 EMMC2 SD-card block driver (#119/#120). Inits EMMC2 (Arasan SDHCI),
-  # identifies the card, reads the MBR (PIO), registers /dev/mmcblk0[pN].
-  #
-  # TWO BUILD VARIANTS, selected by RPI4B_VARIANT (rebuild-rpi4b-fast.sh --variant):
-  #   sd      -> `-r /dev/mmcblk0p2:ext2`: mount the ext2 partition as root (#120).
-  #   netboot -> probe-only (no -r): card-out safe, for net-booted device bring-up.
-  # On a card-absent boot the driver bails gracefully (-ENODEV) and boot continues.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'sd' }}"
-    str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc;-r;/dev/mmcblk0p2:ext2 ddr ddr
+  # BCM2711 EMMC2 SD-card block driver (#119/#120), netboot variant only:
+  # probe-only (no -r), card-out safe, registers /dev/mmcblk0[pN] for inspection.
+  # On a card-absent boot it bails gracefully (-ENODEV) and boot continues.
+  # (The sd variant launches this driver EARLIER, above, with -r to mount its
+  # ext2 root before the /-dependent services.)
   - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
     str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc ddr ddr
   # SoC thermal/throttle telemetry: reads the VideoCore property mailbox and

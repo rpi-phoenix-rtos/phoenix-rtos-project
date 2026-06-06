@@ -53,6 +53,11 @@ contents:
   # free of an extra process while that intermittent bug is being debugged.
   - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
+  # BCM2711 GPIO observer: registers /dev/gpio (read-only register snapshot +
+  # per-pin devctl query). Needs devfs at /dev. netboot variant only (same
+  # rationale as rpi4-fb: keep the sd exec-from-card path minimal).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

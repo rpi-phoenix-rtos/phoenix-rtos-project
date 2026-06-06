@@ -45,6 +45,11 @@ contents:
   - app {{ env.BOOT_DEVICE }} -x rpi4-thermal ddr ddr
   # Hardware RNG (BCM2711 iproc RNG200): registers /dev/hwrng. Needs devfs at /dev.
   - app {{ env.BOOT_DEVICE }} -x rpi4-hwrng ddr ddr
+  # VideoCore HDMI framebuffer: registers /dev/fb0 (read/write byte access +
+  # geometry devctl) over the plo-allocated 32-bpp surface. Needs devfs at /dev.
+  # Read-only at startup (no drawing) so it never disturbs the pl011-tty boot
+  # console, which owns the same surface. Bails (-ENODEV) if no framebuffer.
+  - app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

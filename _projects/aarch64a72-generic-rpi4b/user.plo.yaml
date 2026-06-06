@@ -49,7 +49,10 @@ contents:
   # geometry devctl) over the plo-allocated 32-bpp surface. Needs devfs at /dev.
   # Read-only at startup (no drawing) so it never disturbs the pl011-tty boot
   # console, which owns the same surface. Bails (-ENODEV) if no framebuffer.
-  - app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
+  # netboot variant only: keep the sd variant's exec-from-card path (#120)
+  # free of an extra process while that intermittent bug is being debugged.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

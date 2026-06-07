@@ -1,2 +1,3 @@
 ports:
   - name: busybox
+  - name: libnfs

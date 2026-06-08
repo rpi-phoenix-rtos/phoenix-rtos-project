@@ -1,3 +1,18 @@
 ports:
   - name: busybox
   - name: libnfs
+  - name: zlib
+  - name: lzo
+  - name: pcre
+  - name: jansson
+  - name: lua
+  - name: coremark
+  - name: picocom
+  - name: libevent
+  - name: mbedtls
+  - name: openssl
+  - name: micropython
+  - name: dropbear
+    use: [zlib]
+  - name: curl
+    use: [mbedtls]

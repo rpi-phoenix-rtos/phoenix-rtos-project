@@ -16,3 +16,5 @@ ports:
     use: [zlib]
   - name: curl
     use: [mbedtls]
+  - name: lighttpd
+    use: [zlib]

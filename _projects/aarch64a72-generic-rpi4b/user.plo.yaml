@@ -12,7 +12,10 @@ contents:
   #              /-dependent services). dummyfs-root must NOT run in the sd
   #              variant or it would own "/" and the ext2 mount's
   #              portRegister("/") would fail with -EEXIST (#120).
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
+  #   nfsroot -> the NFS export becomes "/" (mounted in the nfsroot block
+  #              below). dummyfs-root must NOT run for the same -EEXIST reason
+  #              as sd (#153 T3).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x dummyfs-root ddr ddr
   # devfs registered as the named port "devfs". create_dev(/dev/...) targets this
   # port directly (strips the /dev prefix), so device nodes can be created before
@@ -20,6 +23,29 @@ contents:
   # from the SD card below without a prior dummyfs-root.
   - app {{ env.BOOT_DEVICE }} -x dummyfs;-N;devfs;-D ddr ddr
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
+  # nfsroot (#153 T3): make the NFS export itself "/". Ordering is critical and
+  # mirrors the sd ext2-root flow — the root server must register "/" BEFORE the
+  # /-dependent services (mkdir/bind/posixsrv), which is why those are duplicated
+  # here (gated to nfsroot) and dropped from their normal positions below for
+  # this variant. (Duplicate `app -x <name>` aliases across mutually-exclusive
+  # `if:` gates are safe — only the rendered survivor counts, same as the two
+  # bcm2711-emmc lines.)
+  #   1. lwip;genet -> network up (DHCP runs async); MUST precede the NFS server.
+  #   2. nfs ... root -> bounded-retry nfs_mount (sockets via the libphoenix
+  #      devfs/netsocket fallback, DHCP observed by the mount succeeding) then
+  #      portRegister("/"). dummyfs-root is skipped (above) so "/" is free.
+  #   3. mkdir /dev -> bind devfs /dev -> posixsrv, now that "/" exists.
+  # (No /nfstest mkdir and no nfs;/nfstest splice — the root IS the export.)
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x nfs;/;10.42.0.1;/;v4;root ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
   # sd: mount the ext2 partition as "/" HERE, before mkdir/bind/posixsrv (which
   # need "/"). The driver create_dev's /dev/mmcblk0pN via the "devfs" port,
   # resolves it (literal path fails pre-bind -> falls back to "devfs/<name>"),
@@ -27,14 +53,21 @@ contents:
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'sd' }}"
     str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc;-r;/dev/mmcblk0p2:ext2 ddr ddr
   # /dev (devfs mountpoint) + /nfstest (NFS mountpoint, #153) created in one
-  # mkdir launch — a program name may appear only ONCE as an `app -x` alias in
-  # plo (a second `-x mkdir` collides: "alias already in use" → boot bricks).
-  - app {{ env.BOOT_DEVICE }} -x mkdir;/dev;/nfstest ddr ddr
-  - app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
+  # mkdir launch — a program name may appear only ONCE as an `app -x` alias
+  # within a single rendered boot script (a second `-x mkdir` collides: "alias
+  # already in use" → boot bricks; the nfsroot `-x mkdir;/dev` above is fine
+  # because its `if:` gate is mutually exclusive with this one). nfsroot does
+  # its own mkdir/bind/posixsrv in the block above (after "/" registers) and
+  # has no /nfstest, so this line and the two below are skipped for it.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x mkdir;/dev;/nfstest ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
   # POSIX server: anonymous pipes, /dev/{null,zero,urandom,full}, ptys,
   # tmpfile, event queues. Without it pipe() is -ENOSYS, so psh pipelines
   # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
-  - app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
   # BCM2711 EMMC2 SD-card block driver (#119/#120), netboot variant only:
   # probe-only (no -r), card-out safe, registers /dev/mmcblk0[pN] for inspection.
   # On a card-absent boot it bails gracefully (-ENODEV) and boot continues.
@@ -77,17 +110,23 @@ contents:
   - app {{ env.BOOT_DEVICE }} -x usb ddr ddr
   # GENET Ethernet — launched with one netif cfg arg. Phys 0xFD580000,
   # IRQs 189 (general) / 190 (ring), PHY BCM54213PE at MDIO addr 0x01.
-  - app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
+  # nfsroot launches lwip EARLY (in the block above, before the NFS root
+  # server), so it is skipped here for that variant.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
   # NFS client smoke test (#153 T1): waits for a DHCP lease then mounts an NFS
   # export and reads/writes a file via the libnfs port. argv: server export file.
   # Kept as a baseline/triage probe; the fs server below is the real deliverable.
-  - app {{ env.BOOT_DEVICE }} -x nfs-smoke;10.42.0.1;/;/etc/hostname ddr ddr
+  # Skipped for nfsroot (the root IS the export — no secondary mount/probe).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x nfs-smoke;10.42.0.1;/;/etc/hostname ddr ddr
   # NFS filesystem server (#153 T2/T3b): mount the NFS export as a Phoenix
   # filesystem at /nfstest (the mountpoint is created by the single mkdir line
   # above — do NOT add a second `-x mkdir` here). The server portCreate()s,
   # nfs_mount()s, and splices itself under /nfstest via mtSetAttr(atDev) to the
   # root fs (the dummyfs `-m` precedent). argv: mountpoint server export version.
-  # Does its own DHCP-wait. NOT root.
-  - app {{ env.BOOT_DEVICE }} -x nfs;/nfstest;10.42.0.1;/;v4 ddr ddr
+  # Does its own DHCP-wait. NOT root. Skipped for nfsroot (root IS the export).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x nfs;/nfstest;10.42.0.1;/;v4 ddr ddr
   - app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   - go!

@@ -26,7 +26,10 @@ contents:
   # mounts ext2, and portRegister("/") succeeds (no dummyfs-root). (#120)
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'sd' }}"
     str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc;-r;/dev/mmcblk0p2:ext2 ddr ddr
-  - app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
+  # /dev (devfs mountpoint) + /nfstest (NFS mountpoint, #153) created in one
+  # mkdir launch — a program name may appear only ONCE as an `app -x` alias in
+  # plo (a second `-x mkdir` collides: "alias already in use" → boot bricks).
+  - app {{ env.BOOT_DEVICE }} -x mkdir;/dev;/nfstest ddr ddr
   - app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
   # POSIX server: anonymous pipes, /dev/{null,zero,urandom,full}, ptys,
   # tmpfile, event queues. Without it pipe() is -ENOSYS, so psh pipelines
@@ -80,11 +83,11 @@ contents:
   # Kept as a baseline/triage probe; the fs server below is the real deliverable.
   - app {{ env.BOOT_DEVICE }} -x nfs-smoke;10.42.0.1;/;/etc/hostname ddr ddr
   # NFS filesystem server (#153 T2/T3b): mount the NFS export as a Phoenix
-  # filesystem at /nfstest. The mountpoint dir must pre-exist (mkdir below),
-  # then the server portCreate()s, nfs_mount()s, and splices itself under
-  # /nfstest via mtSetAttr(atDev) to the root fs (the dummyfs `-m` precedent).
-  # argv: mountpoint server export version. Does its own DHCP-wait. NOT root.
-  - app {{ env.BOOT_DEVICE }} -x mkdir;/nfstest ddr ddr
+  # filesystem at /nfstest (the mountpoint is created by the single mkdir line
+  # above — do NOT add a second `-x mkdir` here). The server portCreate()s,
+  # nfs_mount()s, and splices itself under /nfstest via mtSetAttr(atDev) to the
+  # root fs (the dummyfs `-m` precedent). argv: mountpoint server export version.
+  # Does its own DHCP-wait. NOT root.
   - app {{ env.BOOT_DEVICE }} -x nfs;/nfstest;10.42.0.1;/;v4 ddr ddr
   - app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   - go!

@@ -12,6 +12,11 @@ uart_2ndstage=1
 init_uart_baud=115200
 init_uart_clock=48000000
 dtoverlay=miniuart-bt
+# V3D GPU bring-up (GLQuake roadmap): fake-KMS V3D overlay tells the firmware to
+# initialize/ungate the V3D core (its MMIO reads 0xdeadbeef without it) while
+# keeping the firmware framebuffer for the HDMI console (full vc4-kms-v3d would
+# hand the display to a kernel DRM driver we don't have, breaking fbcon).
+dtoverlay=vc4-fkms-v3d
 force_turbo=1
 core_freq=250
 # Skip the firmware bootloader delay (default 1 s) and rainbow splash —

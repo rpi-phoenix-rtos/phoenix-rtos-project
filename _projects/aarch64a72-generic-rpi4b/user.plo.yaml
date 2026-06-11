@@ -139,6 +139,12 @@ contents:
   # (a gated-MMIO abort would kill only the scout). netboot variant only.
   - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-scout ddr ddr
+  # Mesa v3d driver harness (GLQuake Path C): runs v3d_screen_create via the ported
+  # Mesa driver and reports over UART — first proof the driver INITIALIZES on HW.
+  # Boot-launched (netboot only) so its stdout is UART-reliable and it runs before
+  # any NFS takeover. ~11 MB program (pulls in the Mesa compiler/NIR).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-mesa ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

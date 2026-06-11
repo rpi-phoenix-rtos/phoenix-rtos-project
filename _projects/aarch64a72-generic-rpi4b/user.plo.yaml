@@ -137,8 +137,11 @@ contents:
   # the VideoCore mailbox and raw-dumps the V3D MMIO identity region over UART to
   # confirm the core is alive + reachable. One-shot diagnostic; isolated process
   # (a gated-MMIO abort would kill only the scout). netboot variant only.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
-    str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-scout ddr ddr
+  # rpi4-v3d-scout disabled: rpi4-v3d-mesa now powers on the V3D itself
+  # (v3d_phoenix_power.c). Running both concurrently raced on the V3D clock/reset +
+  # the firmware mailbox and hung the boot. Re-enable only if running mesa-harness off.
+  # - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-scout ddr ddr
   # Mesa v3d driver harness (GLQuake Path C): runs v3d_screen_create via the ported
   # Mesa driver and reports over UART — first proof the driver INITIALIZES on HW.
   # Boot-launched (netboot only) so its stdout is UART-reliable and it runs before

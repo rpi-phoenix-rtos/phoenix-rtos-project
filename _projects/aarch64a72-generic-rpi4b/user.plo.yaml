@@ -146,8 +146,15 @@ contents:
   # Mesa driver and reports over UART — first proof the driver INITIALIZES on HW.
   # Boot-launched (netboot only) so its stdout is UART-reliable and it runs before
   # any NFS takeover. ~11 MB program (pulls in the Mesa compiler/NIR).
+  # rpi4-v3d-mesa (the hand-built clear/triangle) disabled while validating the GL
+  # frontend; only one V3D program may run per boot (they race on clock/reset).
+  # - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-mesa ddr ddr
+  # Mesa OpenGL glClear harness (GLQuake Path C, Phase 4): drives a glClear through
+  # the OpenGL API (st_create_context -> surfaceless make-current -> FBO over an RT
+  # -> glClear -> readback + /dev/fb0 blit). First proof the GL FRONTEND renders on HW.
   - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
-    str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-mesa ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-glclear ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

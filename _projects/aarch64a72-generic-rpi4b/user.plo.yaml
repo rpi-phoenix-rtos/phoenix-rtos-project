@@ -150,12 +150,13 @@ contents:
   # frontend; only one V3D program may run per boot (they race on clock/reset).
   # - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-mesa ddr ddr
-  # rpi4-glclear validated (renders green via the GL frontend). Swapped to rpi4-gldraw
-  # (the next rung): a textured, depth-tested glDrawArrays triangle through the GL API,
-  # exercising vertex submission + FF shader generation + v3d_compile-at-draw.
+  # rpi4-glclear (green) + rpi4-gldraw (textured triangle, on HDMI) validated. Now
+  # rpi4-glcube: an animated, depth-tested, perspective spinning cube through the GL API
+  # -- the glgears-or-similar rung demonstrating OpenGL animation on the V3D.
   # - str: app {{ env.BOOT_DEVICE }} -x rpi4-glclear ddr ddr
+  # - str: app {{ env.BOOT_DEVICE }} -x rpi4-gldraw ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
-    str: app {{ env.BOOT_DEVICE }} -x rpi4-gldraw ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-glcube ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

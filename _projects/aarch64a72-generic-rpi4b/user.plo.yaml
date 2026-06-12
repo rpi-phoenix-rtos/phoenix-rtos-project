@@ -157,7 +157,9 @@ contents:
   # - str: app {{ env.BOOT_DEVICE }} -x rpi4-gldraw ddr ddr
   # rpi4-quake: the Quakespasm capstone, bundled in loader.disk (boot-launched).
   # Boot-launching avoids the NFS-exec size limit; prints engine init to UART.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+  # Launched on netboot AND nfsroot (nfsroot serves /id1/pak0.pak; rpi4-quake waits
+  # for the data + NFS-root mount before Host_Init). Not on sd (different root path).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI

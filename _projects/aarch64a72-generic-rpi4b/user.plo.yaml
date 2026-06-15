@@ -154,7 +154,7 @@ contents:
   # rpi4-glcube: an animated, depth-tested, perspective spinning cube through the GL API
   # -- the glgears-or-similar rung demonstrating OpenGL animation on the V3D.
   # - str: app {{ env.BOOT_DEVICE }} -x rpi4-glclear ddr ddr
-  # - str: app {{ env.BOOT_DEVICE }} -x rpi4-gldraw ddr ddr
+  # - str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
   # rpi4-quake: the Quakespasm capstone, bundled in loader.disk (boot-launched).
   # Boot-launching avoids the NFS-exec size limit; prints engine init to UART.
   # Launched on ALL variants: nfsroot/netboot serve /id1/pak0.pak over NFS (at

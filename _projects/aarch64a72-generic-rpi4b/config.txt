@@ -37,3 +37,11 @@ gpu_mem=76
 hdmi_force_hotplug=1
 disable_overscan=1
 disable_splash=1
+# Force 1920x1080@60 output + framebuffer for the GLQuake 1080p performance target
+# (~40fps@1080p, Linux parity). hdmi_group=1 (CEA) mode 16 = 1080p60; the grabber is
+# 4K-capable so 1080p is supported. framebuffer_width/height pin the fb to 1920x1080
+# (8.3 MB, fits gpu_mem=76); graphmode then reports 1920x1080 to rpi4-fb + Quake.
+hdmi_group=1
+hdmi_mode=16
+framebuffer_width=1920
+framebuffer_height=1080

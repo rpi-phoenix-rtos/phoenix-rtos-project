@@ -25,8 +25,8 @@
 #define PLO_RPI_MAILBOX_BASE_ADDRESS 0xfe00b880u
 #define PLO_RPI_MAILBOX_BUFFER_ADDRESS 0x02000000u
 #define RPI_MAILBOX_BASE_ADDRESS 0xfe00b880u
-#define PLO_RPI_FB_WIDTH            1024u
-#define PLO_RPI_FB_HEIGHT           768u
+#define PLO_RPI_FB_WIDTH            1920u
+#define PLO_RPI_FB_HEIGHT           1080u
 #define PLO_RPI_FB_BPP              32u
 #define HAS_GRAPHICS                1
 

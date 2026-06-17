@@ -140,6 +140,9 @@ contents:
   # attended. netboot variant only (same minimal-sd-path rationale as rpi4-gpio).
   - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
+  # Boot system-info banner (build stamp, uptime, HW-RNG sample, device inventory).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-sysinfo ddr ddr
   # rpi4-ipcprobe: userspace-API readiness probe (AF_UNIX + libc getrandom/getentropy).
   # Ran 2026-06-17, all PASS (AF_UNIX READY + getrandom/getentropy READY). One-shot;
   # disabled by default. To re-run: re-add to DEFAULT_COMPONENTS (devices) + uncomment.

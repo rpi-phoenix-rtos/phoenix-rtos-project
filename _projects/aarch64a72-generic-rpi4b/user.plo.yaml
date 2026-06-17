@@ -176,8 +176,8 @@ contents:
   # /id1 or /nfstest/id1), and the sd variant has it on the ext2 root at /id1.
   # rpi4-quake's wait_for_gamedata probes both, so the same launch works everywhere.
   - app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
-  # Vulkan V3DV Tier-1 harness (swap in for rpi4-quake to continue Vulkan bring-up;
-  # instance+enumerate(count=1)+the device-create abort cleared; vkCreateDevice hangs):
+  # Vulkan V3DV Tier-1 harness (swap in for rpi4-quake to continue): instance+enumerate
+  # cleared; threaded-submit hang fixed (is_shim); vkCreateDevice aborts in phys-dispatch next.
   # - app {{ env.BOOT_DEVICE }} -x rpi4-v3dv-tier0 ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI

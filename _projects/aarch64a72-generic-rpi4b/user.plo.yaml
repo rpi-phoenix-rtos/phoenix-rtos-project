@@ -140,9 +140,9 @@ contents:
   # attended. netboot variant only (same minimal-sd-path rationale as rpi4-gpio).
   - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
-  # rpi4-ipcprobe (AF_UNIX X11 Phase-1 gate) ran here 2026-06-17 and PASSED (AF_UNIX
-  # READY); it's a one-shot bring-up probe, so it's no longer launched by default.
-  # To re-run: re-add it to DEFAULT_COMPONENTS (devices) + uncomment below.
+  # rpi4-ipcprobe: userspace-API readiness probe (AF_UNIX + libc getrandom/getentropy).
+  # Ran 2026-06-17, all PASS (AF_UNIX READY + getrandom/getentropy READY). One-shot;
+  # disabled by default. To re-run: re-add to DEFAULT_COMPONENTS (devices) + uncomment.
   # - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-ipcprobe ddr ddr
   # V3D GPU scout (Tier 3, GLQuake roadmap): powers on the V3D power domain via

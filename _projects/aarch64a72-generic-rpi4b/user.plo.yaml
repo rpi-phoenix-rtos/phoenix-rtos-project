@@ -97,6 +97,8 @@ contents:
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x usb ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x psh ddr ddr
@@ -133,6 +135,11 @@ contents:
   # launches this in its post-takeover block.
   - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
+  # BCM2711 PWM audio: registers /dev/audio0 (3.5mm jack via PWM1 on GPIO40/41).
+  # Brings up the PWM clock + engine and self-logs the state; audible sign-off is
+  # attended. netboot variant only (same minimal-sd-path rationale as rpi4-gpio).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
   # V3D GPU scout (Tier 3, GLQuake roadmap): powers on the V3D power domain via
   # the VideoCore mailbox and raw-dumps the V3D MMIO identity region over UART to
   # confirm the core is alive + reachable. One-shot diagnostic; isolated process

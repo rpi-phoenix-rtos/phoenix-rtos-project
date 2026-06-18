@@ -172,10 +172,14 @@ contents:
   # - str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
   # rpi4-quake: the Quakespasm capstone, bundled in loader.disk (boot-launched).
   # Boot-launching avoids the NFS-exec size limit; prints engine init to UART.
-  # Launched on ALL variants: nfsroot/netboot serve /id1/pak0.pak over NFS (at
-  # /id1 or /nfstest/id1), and the sd variant has it on the ext2 root at /id1.
-  # rpi4-quake's wait_for_gamedata probes both, so the same launch works everywhere.
-  - app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
+  # Launched on netboot + sd (the demo variants): netboot serves /id1/pak0.pak
+  # over NFS, the sd variant has it on the ext2 root at /id1; rpi4-quake's
+  # wait_for_gamedata probes both, so the same launch works on either.
+  # SKIPPED for nfsroot: that variant is the dev/exec-testing path driven by
+  # scripted psh, and Quake's continuous render loop floods the UART console,
+  # drowning the shell I/O the nfsroot variant exists to exercise.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
   # Vulkan V3DV Tier-1 harness (swap in for rpi4-quake to continue): instance+enumerate
   # cleared; threaded-submit hang fixed (is_shim); vkCreateDevice aborts in phys-dispatch next.
   # - app {{ env.BOOT_DEVICE }} -x rpi4-v3dv-tier0 ddr ddr

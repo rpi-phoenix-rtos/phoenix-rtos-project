@@ -180,8 +180,8 @@ contents:
   # drowning the shell I/O the nfsroot variant exists to exercise.
   - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
-  # Vulkan V3DV Tier-1 harness (swap in for rpi4-quake to continue): instance+enumerate
-  # cleared; threaded-submit hang fixed (is_shim); vkCreateDevice aborts in phys-dispatch next.
+  # Vulkan V3DV Tier-1 harness (swap in for rpi4-quake to continue): instance+enumerate+
+  # vkCreateDevice all PASS on HW (2026-06-18, noop-job BO-alloc fix). Next: queue submit.
   # - app {{ env.BOOT_DEVICE }} -x rpi4-v3dv-tier0 ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI

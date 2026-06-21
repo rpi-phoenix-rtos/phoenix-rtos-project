@@ -25,15 +25,14 @@ core_freq=250
 boot_delay=0
 boot_delay_ms=0
 disable_poe_fan=1
-# Lock GPU reserve at the firmware-minimum that still supports HDMI + mailbox + framebuffer.
-# This frees as much DRAM for ARM as the Pi 4 layout allows. Note: `total_mem` cannot
-# enlarge memory — it only caps it, so we omit it. Default behaviour is "use all DRAM".
-# Pi 4 4GB layout (with gpu_mem=76):
-#   0x00000000 - 0x3b3fffff   948 MB   ARM DRAM (chunk 1)
-#   0x3b400000 - 0x3fffffff    76 MB   GPU heap + framebuffer (VC4 owns, ARM stays Device)
-#   0x40000000 - 0xfbffffff  3008 MB   ARM DRAM (chunk 2) — until now unmapped on ARM
-#   0xfc000000 - 0xffffffff    64 MB   BCM2711 peripherals (low-peri mode, MMIO)
-gpu_mem=76
+# GPU reserve. Sized to hold a TRIPLE-height framebuffer (3 x 1920x1080x4 = ~24.9 MB) plus
+# HDMI/mailbox/firmware overhead, so plo can allocate a 3x-virtual-height fb for triple-buffer
+# page-flip (the GLQuake render-stall fix: the displayed buffer is never GPU-written, and with
+# 3 buffers the resolve target is always >=2 vsync-latched flips from the scanned-out buffer —
+# eliminating the deferred-flip contention race that 2 buffers left). gpu_mem=76 only fit 2x
+# (~16.6 MB), so the firmware refused the 3rd buffer and the race remained. 128 MB fits 3x with
+# margin; the cost is ~52 MB of ARM DRAM on a 4 GB+ board. (`total_mem` only caps, so omitted.)
+gpu_mem=128
 hdmi_force_hotplug=1
 disable_overscan=1
 disable_splash=1
@@ -45,3 +44,7 @@ hdmi_group=1
 hdmi_mode=16
 framebuffer_width=1920
 framebuffer_height=1080
+# Raise the firmware's max framebuffer height so plo can allocate a TRIPLE-height (3x1080=3240)
+# virtual framebuffer for triple-buffer page-flip. The default cap (~2560) limited the grant to
+# 2 buffers (the deferred-flip race remained); 4096 admits 3 buffers (with gpu_mem=128).
+max_framebuffer_height=4096

@@ -180,8 +180,11 @@ contents:
   # drowning the shell I/O the nfsroot variant exists to exercise.
   - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
-  # Vulkan V3DV harness: Tier 4a DONE — vkCmdClearColorImage to a
-  # scanout-backed image paints HDMI (live fb px0=ff 00 80 ff). Next: render pass + shaders.
+  # Vulkan V3DV harness: Tier 4b DONE (2026-06-23) — a real graphics pipeline (hand-authored
+  # SPIR-V VS+FS compiled NIR->QPU) + render pass + vertexless vkCmdDraw(3) all execute on the
+  # V3D (CreateGraphicsPipelines/QueueSubmit/QueueWaitIdle=0, scanout STORE landed). First
+  # user-shader GPU render via Vulkan on Phoenix. Swap with rpi4-quake (one large V3D binary
+  # per boot) + the Makefile.aarch64a72-generic DEFAULT_COMPONENTS to re-run. Next: vkQuake.
   # - app {{ env.BOOT_DEVICE }} -x rpi4-v3dv-tier0 ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI

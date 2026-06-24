@@ -25,6 +25,14 @@ contents:
   # from the SD card below without a prior dummyfs-root.
   - app {{ env.BOOT_DEVICE }} -x dummyfs;-N;devfs;-D ddr ddr
   - app {{ env.BOOT_DEVICE }} -x pl011-tty ddr ddr
+  # VideoCore property-mailbox server (/dev/vcmbox): owns the single, arbitration-
+  # free mailbox FIFO and serializes every property call. Launched FIRST among the
+  # mailbox users (before the sd ext2-root bcm2711-emmc below, thermal, usb, lwip,
+  # v3d) so no two of them ever drive the FIFO concurrently. Only needs the "devfs"
+  # named port (above) for create_dev -- not "/", the /dev bind, or posixsrv -- so
+  # it is safe to start this early. nfsroot launches it in its pre-takeover block.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-vcmbox ddr ddr
   # sd: mount the ext2 partition as "/" HERE, before mkdir/bind/posixsrv (which
   # need "/"). The driver create_dev's /dev/mmcblk0pN via the "devfs" port,
   # resolves it (literal path fails pre-bind -> falls back to "devfs/<name>"),
@@ -70,6 +78,12 @@ contents:
     str: app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
+  # VideoCore mailbox server, launched before lwip (a future genet MAC-read
+  # client) and the post-takeover thermal/usb/v3d. /dev/vcmbox is created in the
+  # "devfs" process, which the NFS takeover re-binds onto the new root, so the
+  # node survives the takeover without relaunching the server.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-vcmbox ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
@@ -178,14 +192,23 @@ contents:
   # SKIPPED for nfsroot: that variant is the dev/exec-testing path driven by
   # scripted psh, and Quake's continuous render loop floods the UART console,
   # drowning the shell I/O the nfsroot variant exists to exercise.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
+  # TEMP-NO-QUAKE-AUTOSTART (debugging the intermittent broken boots): Quake autostart disabled
+  # so boots reach psh and the USB/boot behavior can be characterized without the GPU render loop.
+  # - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
   # Vulkan V3DV harness: Tier 4b DONE (2026-06-23) — a real graphics pipeline (hand-authored
   # SPIR-V VS+FS compiled NIR->QPU) + render pass + vertexless vkCmdDraw(3) all execute on the
   # V3D (CreateGraphicsPipelines/QueueSubmit/QueueWaitIdle=0, scanout STORE landed). First
   # user-shader GPU render via Vulkan on Phoenix. Swap with rpi4-quake (one large V3D binary
   # per boot) + the Makefile.aarch64a72-generic DEFAULT_COMPONENTS to re-run. Next: vkQuake.
   # - app {{ env.BOOT_DEVICE }} -x rpi4-v3dv-tier0 ddr ddr
+  # vkQuake (Vulkan QuakeSpasm capstone): bundled in loader.disk (boot-launched),
+  # the Vulkan counterpart to rpi4-quake. Swap with rpi4-quake (one large GL/VK
+  # binary per boot): comment the rpi4-quake launch above + uncomment this line
+  # (and the matching DEFAULT_COMPONENTS in _targets/Makefile.aarch64a72-generic).
+  # SKIPPED for nfsroot for the same reason as rpi4-quake (render loop floods UART).
+  # - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-vkquake ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

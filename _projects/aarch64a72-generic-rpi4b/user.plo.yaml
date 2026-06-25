@@ -55,6 +55,15 @@ contents:
   # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
   - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
+  # Kernel-log capture daemon (task #31, netboot/sd variants). Launched only in
+  # the USER logging mode: scripts/rebuild-rpi4b-fast.sh exports RPI4_LOG_TO_FILE=1
+  # iff board_config.h has `#define RPI4_LOG_TO_FILE 1` (DEBUG default = unset =
+  # not launched, so the console behavior is unchanged). Needs "/" + /dev +
+  # posixsrv (above); it self-creates /var/log and appends the klog to
+  # /var/log/messages (view with `logread`). nfsroot launches it in its
+  # post-takeover block. The DEBUG default keeps this line inert.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' and env.RPI4_LOG_TO_FILE | default('0') == '1' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-klogd ddr ddr
   # ===================================================================
   # nfsroot (#153 T3 design-A): NFS export TAKES OVER "/". Ordering is critical.
   # A dummyfs RAM "/" is already up (dummyfs-root above), so we bring up /dev +
@@ -114,6 +123,12 @@ contents:
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x usb ddr ddr
+  # Kernel-log capture daemon (task #31, nfsroot variant, USER logging mode only —
+  # see the netboot/sd line above). Launched after the NFS takeover (so /dev + "/"
+  # are the NFS root) and before psh; captures the klog to /var/log/messages on the
+  # NFS export. The DEBUG default leaves RPI4_LOG_TO_FILE unset so this is inert.
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' and env.RPI4_LOG_TO_FILE | default('0') == '1' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-klogd ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   # ===================================================================

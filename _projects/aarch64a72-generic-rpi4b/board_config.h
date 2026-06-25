@@ -66,4 +66,36 @@
  * boot replays the same complete log to both UART and HDMI. */
 #define KERNEL_LOG_SIZE (64 * 1024)
 
+/* Task #31 — logging build mode (single source of truth).
+ *
+ *   0 (default, "DEBUG") — kernel log (klog) is printed to the console exactly
+ *     as today: the kernel mirrors every klog byte to the UART (log/log.c) and
+ *     pl011-tty drains the klog ring to the HDMI fbcon. This is the safety
+ *     contract: with the macro at 0 the console behavior is byte-for-byte the
+ *     historical behavior, so a logging bug cannot regress console visibility.
+ *
+ *   1 ("USER") — the verbose klog console output is SUPPRESSED on BOTH console
+ *     sinks (the UART mirror in log_write() and the pl011-tty fbcon drain).
+ *     Panic / critical kernel output is still mirrored to the UART (log_write's
+ *     panic path is never gated). The klog is instead captured to
+ *     /var/log/messages by the rpi4-klogd daemon, viewable with `logread`.
+ *     This keeps the interactive console quiet (psh's own output still shows)
+ *     while preserving the full log in a file (Linux-like).
+ *
+ * Two kinds of consumer reach this one definition two ways:
+ *   - Compile-time console sinks (log/log.c, pl011-tty.c — both include this
+ *     header) read the macro directly via #if.
+ *   - The rpi4-klogd plo launch gate: scripts/rebuild-rpi4b-fast.sh greps this
+ *     macro and exports a matching RPI4_LOG_TO_FILE env var (same mechanism as
+ *     --variant -> RPI4B_VARIANT), and user.plo.yaml gates the launch on it. So
+ *     the macro and the launch are derived from one place and cannot desync.
+ *
+ * To enable USER mode: set this to 1 and rebuild core
+ * (./scripts/rebuild-rpi4b-fast.sh --scope core). See
+ * docs/inprogress/2026-06-25-logging-var-log.md.
+ */
+#ifndef RPI4_LOG_TO_FILE
+#define RPI4_LOG_TO_FILE 0
+#endif
+
 #endif

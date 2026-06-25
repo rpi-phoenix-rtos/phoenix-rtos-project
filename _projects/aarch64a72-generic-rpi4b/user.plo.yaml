@@ -207,10 +207,10 @@ contents:
   # SKIPPED for nfsroot: that variant is the dev/exec-testing path driven by
   # scripted psh, and Quake's continuous render loop floods the UART console,
   # drowning the shell I/O the nfsroot variant exists to exercise.
-  # TEMP-NO-QUAKE-AUTOSTART (debugging the intermittent broken boots): Quake autostart disabled
-  # so boots reach psh and the USB/boot behavior can be characterized without the GPU render loop.
-  # - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
-  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
+  # GL Quake (flagship) autostart — re-enabled 2026-06-25 (the intermittent-boot cause was the
+  # build-vs-boot race, now understood; mailbox serialization + kernel cleanups landed since).
+  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
   # Vulkan V3DV harness: Tier 4b DONE (2026-06-23) — a real graphics pipeline (hand-authored
   # SPIR-V VS+FS compiled NIR->QPU) + render pass + vertexless vkCmdDraw(3) all execute on the
   # V3D (CreateGraphicsPipelines/QueueSubmit/QueueWaitIdle=0, scanout STORE landed). First

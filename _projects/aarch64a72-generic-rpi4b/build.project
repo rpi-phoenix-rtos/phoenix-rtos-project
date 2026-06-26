@@ -86,6 +86,14 @@ rpi4b_stageDtb() {
 b_build_project() {
 	local rootfs_dtb="${PREFIX_ROOTFS}/etc/system.dtb"
 
+	# Build the in-tree user applications (phoenix-rtos-project/_user/), including the
+	# rpi4-quake GL flagship + rpi4-vkquake, into PREFIX_PROG_STRIPPED. Every other
+	# Phoenix target wires this in its b_build_project; aarch64a72-generic-rpi4b is the
+	# project whose b_build_project (this one, sourced after the shared target file)
+	# overrides the empty target default, so it must do the _user build itself.
+	b_log "Building user applications"
+	make -C "_user" all install
+
 	fastlane_stageRootDummyfs
 	fastlane_stagePshApplets
 

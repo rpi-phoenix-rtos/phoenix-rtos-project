@@ -177,29 +177,12 @@ contents:
   # disabled by default. To re-run: re-add to DEFAULT_COMPONENTS (devices) + uncomment.
   # - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-ipcprobe ddr ddr
-  # V3D GPU scout (Tier 3, GLQuake roadmap): powers on the V3D power domain via
-  # the VideoCore mailbox and raw-dumps the V3D MMIO identity region over UART to
-  # confirm the core is alive + reachable. One-shot diagnostic; isolated process
-  # (a gated-MMIO abort would kill only the scout). netboot variant only.
-  # rpi4-v3d-scout disabled: rpi4-v3d-mesa now powers on the V3D itself
-  # (v3d_phoenix_power.c). Running both concurrently raced on the V3D clock/reset +
-  # the firmware mailbox and hung the boot. Re-enable only if running mesa-harness off.
-  # - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
-  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-scout ddr ddr
-  # Mesa v3d driver harness (GLQuake Path C): runs v3d_screen_create via the ported
-  # Mesa driver and reports over UART — first proof the driver INITIALIZES on HW.
-  # Boot-launched (netboot only) so its stdout is UART-reliable and it runs before
-  # any NFS takeover. ~11 MB program (pulls in the Mesa compiler/NIR).
-  # rpi4-v3d-mesa (the hand-built clear/triangle) disabled while validating the GL
-  # frontend; only one V3D program may run per boot (they race on clock/reset).
-  # - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
-  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-mesa ddr ddr
-  # rpi4-glclear (green) + rpi4-gldraw (textured triangle, on HDMI) validated. Now
-  # rpi4-glcube: an animated, depth-tested, perspective spinning cube through the GL API
-  # -- the glgears-or-similar rung demonstrating OpenGL animation on the V3D.
-  # - str: app {{ env.BOOT_DEVICE }} -x rpi4-glclear ddr ddr
-  # - str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
-  # rpi4-quake: the Quakespasm capstone, bundled in loader.disk (boot-launched).
+  # The V3D bring-up diagnostics (rpi4-v3d-scout/-mesa) and the GL demo rungs
+  # (rpi4-glclear/-gldraw/-glcube) were removed (hypotheses resolved; recoverable
+  # from git history). The showcase is rpi4-quake (below).
+  #
+  # rpi4-quake: the Quakespasm capstone (now built from phoenix-rtos-project/_user/
+  # rpi4-quake/), bundled in loader.disk (boot-launched).
   # Boot-launching avoids the NFS-exec size limit; prints engine init to UART.
   # Launched on netboot + sd (the demo variants): netboot serves /id1/pak0.pak
   # over NFS, the sd variant has it on the ext2 root at /id1; rpi4-quake's
@@ -211,16 +194,11 @@ contents:
   # build-vs-boot race, now understood; mailbox serialization + kernel cleanups landed since).
   - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
-  # Vulkan V3DV harness: Tier 4b DONE (2026-06-23) — a real graphics pipeline (hand-authored
-  # SPIR-V VS+FS compiled NIR->QPU) + render pass + vertexless vkCmdDraw(3) all execute on the
-  # V3D (CreateGraphicsPipelines/QueueSubmit/QueueWaitIdle=0, scanout STORE landed). First
-  # user-shader GPU render via Vulkan on Phoenix. Swap with rpi4-quake (one large V3D binary
-  # per boot) + the Makefile.aarch64a72-generic DEFAULT_COMPONENTS to re-run. Next: vkQuake.
-  # - app {{ env.BOOT_DEVICE }} -x rpi4-v3dv-tier0 ddr ddr
-  # vkQuake (Vulkan QuakeSpasm capstone): bundled in loader.disk (boot-launched),
-  # the Vulkan counterpart to rpi4-quake. Swap with rpi4-quake (one large GL/VK
-  # binary per boot): comment the rpi4-quake launch above + uncomment this line
-  # (and the matching DEFAULT_COMPONENTS in _targets/Makefile.aarch64a72-generic).
+  # vkQuake (Vulkan QuakeSpasm capstone, built from phoenix-rtos-project/_user/
+  # rpi4-vkquake/): the Vulkan counterpart to rpi4-quake. loader.disk fits only one
+  # large GL/VK binary per boot, so the two SWAP: to run vkQuake, comment the
+  # rpi4-quake launch above + uncomment this line. Both apps are always built by
+  # `make -C _user`, so no Makefile change is needed to swap — only this launch line.
   # SKIPPED for nfsroot for the same reason as rpi4-quake (render loop floods UART).
   # - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-vkquake ddr ddr

@@ -51,6 +51,11 @@ fi
 
 fastlane_stageRootDummyfs() {
 	cp -a "${PREFIX_PROG_STRIPPED}dummyfs" "${PREFIX_PROG_STRIPPED}dummyfs-root"
+	# dummyfs-tmp: a SECOND dummyfs alias (distinct from the devfs `dummyfs`
+	# instance and the `dummyfs-root` root) used by the nfsroot variant to mount
+	# a RAM-backed /tmp. The NFS root cannot host AF_UNIX socket nodes (X11's
+	# /tmp/.X11-unix/X0), so the X server needs a real tmpfs at /tmp (#44/#45).
+	cp -a "${PREFIX_PROG_STRIPPED}dummyfs" "${PREFIX_PROG_STRIPPED}dummyfs-tmp"
 }
 
 

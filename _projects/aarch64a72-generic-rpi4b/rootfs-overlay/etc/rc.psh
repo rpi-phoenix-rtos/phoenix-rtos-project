@@ -1,0 +1,20 @@
+:{}:
+# rpi4b standard init script, run by `psh -i /etc/rc.psh` from the ext2 root.
+# `W` = wait for the command to exit (init/daemonize), `X` = start in the
+# background, `T` = open a controlling terminal.
+#
+# STAGED BRING-UP (#120/#118): this first iteration is intentionally minimal so a
+# boot failure is bisectable — it exercises the newly-used capabilities (ext2 as
+# `/`, exec-from-ext2) with only proven servers. usb (keyboard) + lwip (net) are
+# added back in the next iteration once root-from-SD is confirmed.
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+export HOME=/root
+# Bind devfs onto /dev (bind retries the lookup; tolerates devfs coming up late).
+W /bin/bind devfs /dev
+# tmpfs at /tmp for pipes/sockets/scratch.
+W /sbin/dummyfs -m /tmp -D
+# POSIX server (pts, pipes, event queues) — psh interactive input needs it (#117).
+X /bin/posixsrv
+# Controlling terminal on the console, then the interactive shell.
+T /dev/console
+X /bin/psh

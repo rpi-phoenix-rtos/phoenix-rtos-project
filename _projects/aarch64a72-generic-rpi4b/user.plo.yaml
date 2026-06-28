@@ -17,7 +17,7 @@ contents:
   #              THEN the NFS server mounts and TAKES OVER "/". So dummyfs-root
   #              IS needed for nfsroot now (unlike the abandoned pre-"/" root
   #              approach) — only the sd variant skips it.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'sd' }}"
     str: app {{ env.BOOT_DEVICE }} -x dummyfs-root ddr ddr
   # devfs registered as the named port "devfs". create_dev(/dev/...) targets this
   # port directly (strips the /dev prefix), so device nodes can be created before
@@ -31,13 +31,13 @@ contents:
   # v3d) so no two of them ever drive the FIFO concurrently. Only needs the "devfs"
   # named port (above) for create_dev -- not "/", the /dev bind, or posixsrv -- so
   # it is safe to start this early. nfsroot launches it in its pre-takeover block.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-vcmbox ddr ddr
   # sd: mount the ext2 partition as "/" HERE, before mkdir/bind/posixsrv (which
   # need "/"). The driver create_dev's /dev/mmcblk0pN via the "devfs" port,
   # resolves it (literal path fails pre-bind -> falls back to "devfs/<name>"),
   # mounts ext2, and portRegister("/") succeeds (no dummyfs-root). (#120)
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'sd' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'sd' }}"
     str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc;-r;/dev/mmcblk0p2:ext2 ddr ddr
   # /dev (devfs mountpoint) + /nfstest (NFS mountpoint, #153) created in one
   # mkdir launch — a program name may appear only ONCE as an `app -x` alias
@@ -46,14 +46,14 @@ contents:
   # the design-A block below (it has no /nfstest), so this line and the two
   # below are skipped for it; the nfsroot `-x mkdir;/dev` there is fine because
   # its `if:` gate is mutually exclusive with this one.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x mkdir;/dev;/nfstest ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
   # POSIX server: anonymous pipes, /dev/{null,zero,urandom,full}, ptys,
   # tmpfile, event queues. Without it pipe() is -ENOSYS, so psh pipelines
   # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
   # Kernel-log capture daemon (task #31, netboot/sd variants). Launched only in
   # the USER logging mode: scripts/rebuild-rpi4b-fast.sh exports RPI4_LOG_TO_FILE=1
@@ -62,7 +62,7 @@ contents:
   # posixsrv (above); it self-creates /var/log and appends the klog to
   # /var/log/messages (view with `logread`). nfsroot launches it in its
   # post-takeover block. The DEBUG default keeps this line inert.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' and env.RPI4_LOG_TO_FILE | default('0') == '1' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and env.RPI4_LOG_TO_FILE | default('0') == '1' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-klogd ddr ddr
   # ===================================================================
   # nfsroot (#153 T3 design-A): NFS export TAKES OVER "/". Ordering is critical.
@@ -83,21 +83,21 @@ contents:
   # (Duplicate `-x mkdir`/`-x bind`/`-x posixsrv`/`-x lwip`/`-x psh` aliases vs
   # the non-nfsroot lines are safe — the `if:` gates are mutually exclusive, so
   # only the rendered survivor counts, same as the two bcm2711-emmc lines.)
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
   # VideoCore mailbox server, launched before lwip (a future genet MAC-read
   # client) and the post-takeover thermal/usb/v3d. /dev/vcmbox is created in the
   # "devfs" process, which the NFS takeover re-binds onto the new root, so the
   # node survives the takeover without relaunching the server.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-vcmbox ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x nfs;/;10.42.0.1;/;v4;takeover ddr ddr
   # nfsroot post-takeover: NFS now owns "/". The /dev bind above lives in the
   # OLD dummyfs root, so /dev would be empty on the NFS root — EXCEPT the NFS
@@ -111,25 +111,25 @@ contents:
   # see /dev on the NFS root. (For netboot/sd these run at their normal
   # positions below, gated out of nfsroot.) usb does PCIe/VL805 bring-up;
   # thermal/hwrng/fb/gpio register their /dev nodes; psh is the shell.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-thermal ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-hwrng ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x usb ddr ddr
   # Kernel-log capture daemon (task #31, nfsroot variant, USER logging mode only —
   # see the netboot/sd line above). Launched after the NFS takeover (so /dev + "/"
   # are the NFS root) and before psh; captures the klog to /var/log/messages on the
   # NFS export. The DEBUG default leaves RPI4_LOG_TO_FILE unset so this is inert.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' and env.RPI4_LOG_TO_FILE | default('0') == '1' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and env.RPI4_LOG_TO_FILE | default('0') == '1' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-klogd ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') == 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   # ===================================================================
   # BCM2711 EMMC2 SD-card block driver (#119/#120), netboot variant only:
@@ -137,17 +137,17 @@ contents:
   # On a card-absent boot it bails gracefully (-ENODEV) and boot continues.
   # (The sd variant launches this driver EARLIER, above, with -r to mount its
   # ext2 root before the /-dependent services.)
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'sd' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'sd' }}"
     str: app {{ env.BOOT_DEVICE }} -x bcm2711-emmc ddr ddr
   # SoC thermal/throttle telemetry: reads the VideoCore property mailbox and
   # registers /dev/thermal (milli-C) + /dev/throttled (bitfield). Needs devfs
   # bound at /dev (above). Telemetry only - the firmware owns the thermal trip.
   # nfsroot launches this in its post-takeover block (after the /dev re-bind).
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-thermal ddr ddr
   # Hardware RNG (BCM2711 iproc RNG200): registers /dev/hwrng. Needs devfs at /dev.
   # nfsroot launches this in its post-takeover block.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-hwrng ddr ddr
   # VideoCore HDMI framebuffer: registers /dev/fb0 (read/write byte access +
   # geometry devctl) over the plo-allocated 32-bpp surface. Needs devfs at /dev.
@@ -156,26 +156,26 @@ contents:
   # netboot variant only: keep the sd variant's exec-from-card path (#120)
   # free of an extra process while that intermittent bug is being debugged.
   # nfsroot launches this in its post-takeover block.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
   # BCM2711 GPIO observer: registers /dev/gpio (read-only register snapshot +
   # per-pin devctl query). Needs devfs at /dev. netboot variant only (same
   # rationale as rpi4-fb: keep the sd exec-from-card path minimal). nfsroot
   # launches this in its post-takeover block.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   # BCM2711 PWM audio: registers /dev/audio0 (3.5mm jack via PWM1 on GPIO40/41).
   # Brings up the PWM clock + engine and self-logs the state; audible sign-off is
   # attended. netboot variant only (same minimal-sd-path rationale as rpi4-gpio).
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
   # Boot system-info banner (build stamp, uptime, HW-RNG sample, device inventory).
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-sysinfo ddr ddr
   # rpi4-ipcprobe: userspace-API readiness probe (AF_UNIX + libc getrandom/getentropy).
   # Ran 2026-06-17, all PASS (AF_UNIX READY + getrandom/getentropy READY). One-shot;
   # disabled by default. To re-run: re-add to DEFAULT_COMPONENTS (devices) + uncomment.
-  # - if: "{{ env.RPI4B_VARIANT | default('netboot') not in ['sd', 'nfsroot'] }}"
+  # - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-ipcprobe ddr ddr
   # The V3D bring-up diagnostics (rpi4-v3d-scout/-mesa) and the GL demo rungs
   # (rpi4-glclear/-gldraw/-glcube) were removed (hypotheses resolved; recoverable
@@ -192,15 +192,17 @@ contents:
   # drowning the shell I/O the nfsroot variant exists to exercise.
   # GL Quake (flagship) autostart — re-enabled 2026-06-25 (the intermittent-boot cause was the
   # build-vs-boot race, now understood; mailbox serialization + kernel cleanups landed since).
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
+  # TEMP-KBD0CHK boot-to-psh
+  # - if: "{{ env.RPI4B_VARIANT | default(\'netboot\') != \'nfsroot\' }}"
+  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
   # vkQuake (Vulkan QuakeSpasm capstone, built from phoenix-rtos-project/_user/
   # rpi4-vkquake/): the Vulkan counterpart to rpi4-quake. loader.disk fits only one
   # large GL/VK binary per boot, so the two SWAP: to run vkQuake, comment the
   # rpi4-quake launch above + uncomment this line. Both apps are always built by
   # `make -C _user`, so no Makefile change is needed to swap — only this launch line.
   # SKIPPED for nfsroot for the same reason as rpi4-quake (render loop floods UART).
-  # - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  # TEMP-XTERM-TEST boot-to-psh (X11 testing). Re-enable for the #29 vkQuake retest.
+  # - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-vkquake ddr ddr
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
@@ -216,19 +218,19 @@ contents:
   # the old split where a parked daemon did only the bridge; the merged in-process
   # bring-up is now deterministic — see docs/notes/2026-06-01-usb-rearchitecture-plan.md.)
   # nfsroot launches this in its post-takeover block.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x usb ddr ddr
   # GENET Ethernet — launched with one netif cfg arg. Phys 0xFD580000,
   # IRQs 189 (general) / 190 (ring), PHY BCM54213PE at MDIO addr 0x01.
   # nfsroot launches lwip EARLY (in the design-A block above, before the NFS
   # takeover server), so it is skipped here for that variant.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
   # NFS client smoke test (#153 T1): waits for a DHCP lease then mounts an NFS
   # export and reads/writes a file via the libnfs port. argv: server export file.
   # Kept as a baseline/triage probe; the fs server below is the real deliverable.
   # Skipped for nfsroot (the root IS the export — no secondary mount/probe).
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x nfs-smoke;10.42.0.1;/;/etc/hostname ddr ddr
   # NFS filesystem server (#153 T2/T3b): mount the NFS export as a Phoenix
   # filesystem at /nfstest (the mountpoint is created by the single mkdir line
@@ -236,10 +238,10 @@ contents:
   # nfs_mount()s, and splices itself under /nfstest via mtSetAttr(atDev) to the
   # root fs (the dummyfs `-m` precedent). argv: mountpoint server export version.
   # Does its own DHCP-wait. NOT root. Skipped for nfsroot (root IS the export).
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x nfs;/nfstest;10.42.0.1;/;v4 ddr ddr
   # psh interactive shell. nfsroot launches it in its post-takeover block (after
   # the /dev re-bind), so it is skipped here for that variant.
-  - if: "{{ env.RPI4B_VARIANT | default('netboot') != 'nfsroot' }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   - go!

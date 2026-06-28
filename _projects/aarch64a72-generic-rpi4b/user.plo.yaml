@@ -83,20 +83,25 @@ contents:
   # (Duplicate `-x mkdir`/`-x bind`/`-x posixsrv`/`-x lwip`/`-x psh` aliases vs
   # the non-nfsroot lines are safe — the `if:` gates are mutually exclusive, so
   # only the rendered survivor counts, same as the two bcm2711-emmc lines.)
+  # Create /dev and /ramtmp in the RAM root in one mkdir invocation (plo
+  # registers one alias per program name — a second `mkdir;...` line collides,
+  # see the netboot branch's `mkdir;/dev;/nfstest`). /ramtmp is the mountpoint
+  # for the RAM-backed /tmp (below).
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x mkdir;/dev ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x mkdir;/dev;/ramtmp ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
-  # RAM-backed /tmp as a NAMED dummyfs port "tmpfs" (dummyfs-tmp is a distinct
-  # dummyfs alias — see build.project). The NFS root cannot host AF_UNIX socket
-  # special files, so X11's listening socket /tmp/.X11-unix/X0 fails to bind on
-  # an NFS-backed /tmp. The NFS takeover server splices this "tmpfs" port onto
-  # its /tmp node IN-PROCESS (nfs_runTakeover, mirroring the /dev re-bind) — an
-  # external `dummyfs -m /tmp` splice onto the NFS-owned dir is not honored.
-  # Registered HERE, alongside devfs and BEFORE posixsrv (which interposes on
-  # name resolution), so the takeover's lookup("tmpfs") resolves. (#44/#45)
+  # RAM-backed /tmp: the NFS root cannot host AF_UNIX socket special files, so
+  # X11's listening socket /tmp/.X11-unix/X0 fails to bind on an NFS-backed
+  # /tmp. dummyfs-tmp MOUNTS itself at /ramtmp in the RAM root (-m, its own
+  # mtSetAttr(atDev) splice — honored here because the RAM root is a dummyfs,
+  # unlike a splice onto the NFS-owned /tmp which is not). The NFS takeover then
+  # resolves /ramtmp and re-binds its own /tmp node onto that fresh writable
+  # dummyfs IN-PROCESS (nfs_runTakeover, mirroring the /dev re-bind). Mounting
+  # (not a bare `-N` named port) keeps it resolvable for the late takeover
+  # lookup — devfs likewise survives only because it is bound to /dev. (#44/#45)
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x dummyfs-tmp;-N;tmpfs;-D ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x dummyfs-tmp;-m;/ramtmp;-D ddr ddr
   # VideoCore mailbox server, launched before lwip (a future genet MAC-read
   # client) and the post-takeover thermal/usb/v3d. /dev/vcmbox is created in the
   # "devfs" process, which the NFS takeover re-binds onto the new root, so the

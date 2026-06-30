@@ -245,7 +245,9 @@ contents:
   # export and reads/writes a file via the libnfs port. argv: server export file.
   # Kept as a baseline/triage probe; the fs server below is the real deliverable.
   # Skipped for nfsroot (the root IS the export — no secondary mount/probe).
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
+  # netboot ONLY: in the sd variant 10.42.0.1 is absent, so this just stalls
+  # ~18 s on ECONNABORTED and floods getservbyport warnings — skip it there.
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'netboot' }}"
     str: app {{ env.BOOT_DEVICE }} -x nfs-smoke;10.42.0.1;/;/etc/hostname ddr ddr
   # NFS filesystem server (#153 T2/T3b): mount the NFS export as a Phoenix
   # filesystem at /mnt (the mountpoint is created by the single mkdir line
@@ -253,7 +255,9 @@ contents:
   # nfs_mount()s, and splices itself under /mnt via mtSetAttr(atDev) to the
   # root fs (the dummyfs `-m` precedent). argv: mountpoint server export version.
   # Does its own DHCP-wait. NOT root. Skipped for nfsroot (root IS the export).
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
+  # netboot ONLY (same reason as nfs-smoke above): the /mnt NFS mount has no
+  # server in the sd variant. The sd root is the local ext2; no /mnt needed.
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'netboot' }}"
     str: app {{ env.BOOT_DEVICE }} -x nfs;/mnt;10.42.0.1;/;v4 ddr ddr
   # psh interactive shell. nfsroot launches it in its post-takeover block (after
   # the /dev re-bind), so it is skipped here for that variant.

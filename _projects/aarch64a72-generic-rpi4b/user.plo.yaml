@@ -171,26 +171,26 @@ contents:
   # netboot variant only: keep the sd variant's exec-from-card path (#120)
   # free of an extra process while that intermittent bug is being debugged.
   # nfsroot launches this in its post-takeover block.
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
   # BCM2711 GPIO observer: registers /dev/gpio (read-only register snapshot +
   # per-pin devctl query). Needs devfs at /dev. netboot variant only (same
   # rationale as rpi4-fb: keep the sd exec-from-card path minimal). nfsroot
   # launches this in its post-takeover block.
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   # BCM2711 PWM audio: registers /dev/audio0 (3.5mm jack via PWM1 on GPIO40/41).
   # Brings up the PWM clock + engine and self-logs the state; audible sign-off is
   # attended. netboot variant only (same minimal-sd-path rationale as rpi4-gpio).
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
   # Boot system-info banner (build stamp, uptime, HW-RNG sample, device inventory).
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-sysinfo ddr ddr
   # rpi4-ipcprobe: userspace-API readiness probe (AF_UNIX + libc getrandom/getentropy).
   # Ran 2026-06-17, all PASS (AF_UNIX READY + getrandom/getentropy READY). One-shot;
   # disabled by default. To re-run: re-add to DEFAULT_COMPONENTS (devices) + uncomment.
-  # - if: "{{ env.RPI4B_VARIANT | default('nfsroot') not in ['sd', 'nfsroot'] }}"
+  # - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-ipcprobe ddr ddr
   # The V3D bring-up diagnostics (rpi4-v3d-scout/-mesa) and the GL demo rungs
   # (rpi4-glclear/-gldraw/-glcube) were removed (hypotheses resolved; recoverable

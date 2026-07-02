@@ -91,6 +91,36 @@ rpi4b_stageDtb() {
 b_build_project() {
 	local rootfs_dtb="${PREFIX_ROOTFS}/etc/system.dtb"
 
+	# NFS binaries that link the libnfs PORT (#153). The libnfs port is built in
+	# the `ports` stage, which runs BEFORE this project stage but AFTER `core` —
+	# so nothing that links libnfs can be a core default component (that would
+	# require the not-yet-built port during `core`, failing a cold-sysroot build).
+	# Two such binaries were previously (wrongly) core default components and are
+	# now built here instead, once libnfs.a + <nfsc/libnfs.h> are in the flat
+	# sysroot:
+	#   - nfs        (filesystems/nfs): the NFS-client VFS server. Needed by the
+	#                nfsroot variant (root IS the export, launched pre-takeover
+	#                from loader.disk) and the netboot variant (mounts /mnt).
+	#   - nfs-smoke  (phoenix-rtos-utils/nfs-smoke): NFS client smoke/triage probe,
+	#                launched only by the netboot variant.
+	# The sd variant uses a local ext2 root and no NFS, so it builds NEITHER —
+	# keeping the base/SD image free of the libnfs port dependency. `nfs` builds
+	# for netboot+nfsroot; `nfs-smoke` for netboot only. Each `make ... install`
+	# stages the binary into PREFIX_PROG_STRIPPED (for the loader.disk bundle) and
+	# the rootfs. The default matches user.plo.yaml's plo render (`default('nfsroot')`)
+	# so an env-less `build.sh project` stays in sync with the rendered launch list.
+	case "${RPI4B_VARIANT:-nfsroot}" in
+		nfsroot)
+			b_log "Building nfs server (nfsroot variant)"
+			make -C "phoenix-rtos-filesystems" nfs nfs-install
+			;;
+		netboot)
+			b_log "Building nfs server + nfs-smoke (netboot variant)"
+			make -C "phoenix-rtos-filesystems" nfs nfs-install
+			make -C "phoenix-rtos-utils" nfs-smoke nfs-smoke-install
+			;;
+	esac
+
 	# Build the in-tree user applications (phoenix-rtos-project/_user/), including the
 	# rpi4-quake GL flagship + rpi4-vkquake, into PREFIX_PROG_STRIPPED. Every other
 	# Phoenix target wires this in its b_build_project; aarch64a72-generic-rpi4b is the

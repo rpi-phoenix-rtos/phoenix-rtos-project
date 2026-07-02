@@ -29,19 +29,30 @@ NAME := rpi4-quake
 LOCAL_SRCS := rpi4-quake-stub.c
 
 # Stable home for the prebuilt engine archives (was /tmp, which the host reaped
-# mid-session). Absolute coord-repo path so it survives prepare-buildroot.sh's
-# --copy-components copy into .buildroot (a relative path would resolve inside the
-# throwaway copy). Same trick the dropped gl* demos used for headers (V3D_COORD).
-GPU_LIBS := /home/houp/phoenix-rpi/tools/.gpu-libs
+# mid-session). Must resolve to the coordination-repo tools/.gpu-libs so it survives
+# prepare-buildroot.sh's --copy-components copy into buildroots/ (a source-relative
+# path would resolve inside the throwaway copy). Both real build locations —
+# sources/phoenix-rtos-project/_user/rpi4-quake and buildroots/.../_user/rpi4-quake —
+# are exactly four path segments below the repo root, so climbing ../../../.. from
+# this Makefile's own directory lands on the repo root in either case. Overridable
+# via the environment (GPU_LIBS=...) for out-of-tree archive locations.
+GPU_LIBS ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../../..)/tools/.gpu-libs
 
 QS_LIB := $(GPU_LIBS)/libquakespasm.a
 V3D_GL_LIB := $(GPU_LIBS)/libGL-phoenix.a
 V3D_LIB := $(GPU_LIBS)/libv3d-phoenix.a
 
-# Fail fast with a clear message if a lib is missing, instead of an obscure link error.
-$(if $(wildcard $(QS_LIB)),,$(error rpi4-quake: $(QS_LIB) missing — run tools/quakespasm-port/build-quakespasm-phoenix.py))
-$(if $(wildcard $(V3D_GL_LIB)),,$(error rpi4-quake: $(V3D_GL_LIB) missing — run tools/v3d-driver-port/build-gl-phoenix.py))
-$(if $(wildcard $(V3D_LIB)),,$(error rpi4-quake: $(V3D_LIB) missing — run tools/v3d-driver-port/build-v3d-phoenix.py))
+# The GL/GPU archives are produced by out-of-band manual builds (tools/*-port/*.py),
+# not by the automated core build. When they are absent (e.g. a fresh clone that only
+# builds the base image), skip this component gracefully rather than aborting the whole
+# `make -C _user all`: not including binary.mk means NAME is never added to
+# ALL_COMPONENTS, so all/install/clean simply never reference rpi4-quake. When the
+# archives ARE present the component links exactly as before.
+ifeq ($(and $(wildcard $(QS_LIB)),$(wildcard $(V3D_GL_LIB)),$(wildcard $(V3D_LIB))),)
+
+$(info rpi4-quake: GPU libs not present in $(GPU_LIBS), skipping (run tools/quakespasm-port/build-quakespasm-phoenix.py + tools/v3d-driver-port/build-gl-phoenix.py + build-v3d-phoenix.py to enable))
+
+else
 
 # -z stack-size sets PT_GNU_STACK p_memsz -> the kernel (process.c) uses it as the
 # MAIN-thread stack size. Quake runs Host on the main thread (for correct TLS-based
@@ -49,5 +60,7 @@ $(if $(wildcard $(V3D_LIB)),,$(error rpi4-quake: $(V3D_LIB) missing — run tool
 LOCAL_LDLIBS := -Wl,-z,stack-size=33554432 -Wl,--start-group $(QS_LIB) $(V3D_GL_LIB) $(V3D_LIB) -Wl,--end-group -lstdc++ -lm
 
 include $(binary.mk)
+
+endif
 
 endif

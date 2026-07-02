@@ -31,19 +31,31 @@ NAME := rpi4-vkquake
 LOCAL_SRCS := rpi4-vkquake-stub.c
 
 # Stable home for the prebuilt engine archives (was /tmp, which the host reaped
-# mid-session). Absolute coord-repo path so it survives prepare-buildroot.sh's
-# --copy-components copy into .buildroot (a relative path would resolve inside the
-# throwaway copy).
-GPU_LIBS := /home/houp/phoenix-rpi/tools/.gpu-libs
+# mid-session). Must resolve to the coordination-repo tools/.gpu-libs so it survives
+# prepare-buildroot.sh's --copy-components copy into buildroots/ (a source-relative
+# path would resolve inside the throwaway copy). Both real build locations —
+# sources/phoenix-rtos-project/_user/rpi4-vkquake and buildroots/.../_user/rpi4-vkquake —
+# are exactly four path segments below the repo root, so climbing ../../../.. from
+# this Makefile's own directory lands on the repo root in either case. Overridable
+# via the environment (GPU_LIBS=...) for out-of-tree archive locations.
+GPU_LIBS ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../../..)/tools/.gpu-libs
 
 VKQUAKE_LIB := $(GPU_LIBS)/libvkquake.a
 V3DV_LIB := $(GPU_LIBS)/libv3dv-phoenix.a
 V3D_LIB := $(GPU_LIBS)/libv3d-phoenix.a
 
-# Fail fast with a clear message if a lib is missing, instead of an obscure link error.
-$(if $(wildcard $(VKQUAKE_LIB)),,$(error rpi4-vkquake: $(VKQUAKE_LIB) missing — run tools/vkquake-port/build-vkquake-phoenix.py))
-$(if $(wildcard $(V3DV_LIB)),,$(error rpi4-vkquake: $(V3DV_LIB) missing — run tools/v3d-driver-port/build-v3dv-phoenix.py))
-$(if $(wildcard $(V3D_LIB)),,$(error rpi4-vkquake: $(V3D_LIB) missing — run tools/v3d-driver-port/build-v3d-phoenix.py))
+# The Vulkan/GPU archives are produced by out-of-band manual builds (tools/*-port/*.py),
+# not by the automated core build. When they are absent (e.g. a fresh clone that only
+# builds the base image), skip this component gracefully rather than aborting the whole
+# `make -C _user all`: not including binary.mk means NAME is never added to
+# ALL_COMPONENTS, so all/install/clean simply never reference rpi4-vkquake. When the
+# archives ARE present the component links exactly as before. (rpi4-vkquake is also
+# default-off vs rpi4-quake in user.plo.yaml, so a skip here changes no boot image.)
+ifeq ($(and $(wildcard $(VKQUAKE_LIB)),$(wildcard $(V3DV_LIB)),$(wildcard $(V3D_LIB))),)
+
+$(info rpi4-vkquake: GPU libs not present in $(GPU_LIBS), skipping (run tools/vkquake-port/build-vkquake-phoenix.py + tools/v3d-driver-port/build-v3dv-phoenix.py + build-v3d-phoenix.py to enable))
+
+else
 
 # -z stack-size sets PT_GNU_STACK p_memsz -> the kernel (process.c) uses it as the
 # MAIN-thread stack size. Like Quakespasm, vkQuake runs Host_Init + the Host_Frame
@@ -66,5 +78,7 @@ $(if $(wildcard $(V3D_LIB)),,$(error rpi4-vkquake: $(V3D_LIB) missing — run to
 LOCAL_LDLIBS := -Wl,-z,stack-size=33554432 -Wl,--build-id -Wl,--allow-multiple-definition -Wl,--whole-archive $(VKQUAKE_LIB) $(V3DV_LIB) -Wl,--no-whole-archive -Wl,--start-group $(V3DV_LIB) $(V3D_LIB) -Wl,--end-group -lstdc++ -lm
 
 include $(binary.mk)
+
+endif
 
 endif

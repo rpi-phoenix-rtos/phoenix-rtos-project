@@ -210,6 +210,16 @@ contents:
   # TEMP-KBD0CHK boot-to-psh
   # - if: "{{ env.RPI4B_VARIANT | default(\'netboot\') != \'nfsroot\' }}"
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
+  # --with-showcase: BUNDLE rpi4-quake into loader.disk WITHOUT `-x`, so the
+  # ~18 MB GLQuake binary is present in the boot image (it is too large to
+  # exec from the read-based NFS/ext2 loader) but is NOT auto-launched (its
+  # continuous render loop would flood the UART). Run it by hand from psh:
+  # `rpi4-quake ddr ddr` (game data lives at /id1 on the ext2 root). Gated on
+  # RPI4B_WITH_SHOWCASE=1 (exported by rebuild-rpi4b-fast.sh --with-showcase);
+  # only bundled when the tools/.gpu-libs archives were built, so a base image
+  # stays unchanged. To auto-launch instead, add `-x` here (UART floods).
+  - if: "{{ env.RPI4B_WITH_SHOWCASE | default('0') == '1' and (env.RPI4B_VARIANT | default('nfsroot')) != 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} rpi4-quake ddr ddr
   # vkQuake (Vulkan QuakeSpasm capstone, built from phoenix-rtos-project/_user/
   # rpi4-vkquake/): the Vulkan counterpart to rpi4-quake. loader.disk fits only one
   # large GL/VK binary per boot, so the two SWAP: to run vkQuake, comment the

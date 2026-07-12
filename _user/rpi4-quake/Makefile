@@ -61,6 +61,19 @@ LOCAL_LDLIBS := -Wl,-z,stack-size=33554432 -Wl,--start-group $(QS_LIB) $(V3D_GL_
 
 include $(binary.mk)
 
+# The prebuilt GL/GPU archives are passed as absolute paths in LOCAL_LDLIBS, so
+# binary.mk's link rule ($(PREFIX_PROG)$(NAME): $(OBJS) $(RESOLVED_LIBS)) does NOT
+# list them as prerequisites — RESOLVED_LIBS only covers -l-resolved libs. Without
+# this, rebuilding the archives (tools/*-port/*.py, e.g. an EZ or mesa change) does
+# NOT relink rpi4-quake: make sees the unchanged stub .o + an existing binary and
+# skips, shipping a STALE engine (the 2026-07-13 stale-quake bug that silently
+# tested a two-week-old binary). Make the stub OBJECT depend on the archives: an
+# archive change then forces a stub recompile, which forces the relink (a prereq on
+# the $(PREFIX_PROG)$(NAME) target alone proved insufficient through the strip/install
+# chain). The dependency is spurious for compilation but the stub is tiny, so the
+# recompile is free — the point is to guarantee the link picks up new archives.
+$(OBJS.$(NAME)): $(QS_LIB) $(V3D_GL_LIB) $(V3D_LIB)
+
 endif
 
 endif

@@ -55,6 +55,19 @@ contents:
   # (ls | cat) fail. Needs dummyfs-root + devfs bound first (above).
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
+  # sd: RAM-back /tmp so it is fail-proof + fast. The ext2 root is PERSISTENT, so a
+  # stale X lock (/tmp/.X0-lock + /tmp/.X11-unix/X0) left by an unclean X exit would
+  # survive the reboot and make the next `startx` abort ("Server is already active
+  # for display 0"). Shadow the on-disk /tmp with a fresh RAM dummyfs each boot:
+  # dummyfs-tmp splices itself onto the ext2 /tmp node via mtSetAttr(atDev) (-m),
+  # which the ext2 server honors (libext2 sets OFLAG_MOUNTPOINT, ext2.c ext2_setattr
+  # atDev) — unlike the NFS root, which is why nfsroot uses a /ramtmp mountpoint
+  # instead. Also faster (RAM vs SD-card I/O for /tmp scratch, e.g. X sockets,
+  # tmpfile). dummyfs-tmp is a distinct plo alias (build.project) so it does not
+  # collide with the base `dummyfs`; its `if:` gate is mutually exclusive with the
+  # nfsroot dummyfs-tmp line below (only the sd survivor renders). #120/#44
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x dummyfs-tmp;-m;/tmp;-D ddr ddr
   # Kernel-log capture daemon (task #31, netboot/sd variants). Launched only in
   # the USER logging mode: scripts/rebuild-rpi4b-fast.sh exports RPI4_LOG_TO_FILE=1
   # iff board_config.h has `#define RPI4_LOG_TO_FILE 1` (DEBUG default = unset =

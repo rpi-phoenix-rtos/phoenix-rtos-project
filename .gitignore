@@ -9,3 +9,8 @@ compile_commands.json
 .venv/
 .cpptest/
 reports/
+
+# Copyrighted Quake game data — never committed. The freely-redistributable
+# shareware pak0 is fetched on demand (scripts/fetch-quake-shareware-pak.sh) or
+# by the Docker build (PAK0_URL); the full game is the user's own.
+**/share/quake/**/*.pak

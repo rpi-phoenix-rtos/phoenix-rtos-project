@@ -18,3 +18,13 @@ ports:
     use: [mbedtls]
   - name: lighttpd
     use: [zlib]
+  # SDL2 (libSDL2.a: phoenix video+GL+input+audio drivers). Listed so the target
+  # build knows the port, but gated off (if: false) for now: no in-tree consumer
+  # exists yet and SDL2 is not proven in a full image build, so an unconditional
+  # build would add cost + a break-point to every image build. The port stays
+  # discoverable via its port.def.sh, so a future game port (Quake2/3/STK) that
+  # declares `use: [sdl2]` / `depends` still pulls it in on demand. Flip to
+  # `if: true` (or drop the gate) once a consumer lands and it is image-proven.
+  # Standalone build/verify meanwhile: scripts/build-sdl2-port.sh.
+  - name: sdl2
+    if: false

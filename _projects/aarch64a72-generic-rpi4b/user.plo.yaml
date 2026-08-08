@@ -126,7 +126,7 @@ contents:
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x nfs;/;10.42.0.1;/;v4;takeover ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x nfs;/;10.42.0.1;/srv/phoenix-rpi4-nfs;v3;takeover ddr ddr
   # nfsroot post-takeover: NFS now owns "/". The /dev bind above lives in the
   # OLD dummyfs root, so /dev would be empty on the NFS root — EXCEPT the NFS
   # takeover server re-binds /dev IN-PROCESS (it splices the "devfs" named port

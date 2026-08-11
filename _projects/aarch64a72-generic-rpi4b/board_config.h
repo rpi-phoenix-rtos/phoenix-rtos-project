@@ -98,4 +98,16 @@
 #define RPI4_LOG_TO_FILE 0
 #endif
 
+/* Enlarge the dummyfs RAM-disk cap (default 32 MiB in dummyfs_internal.h, which #includes
+ * this board_config.h and honors an override). On this board /tmp is a RAM-backed dummyfs
+ * (user.plo.yaml: `dummyfs-tmp -m /tmp`), so its size caps how much game data can be
+ * pre-staged into RAM. Staging a game's assets to /tmp and running from there loads
+ * markedly faster than over NFS (measured: quakespasm Q1 ~3.6x; NFS random 4 KiB read
+ * 1.46 ms vs tmpfs 0.07 ms) — the owner's RAM-staging load-time workaround. 32 MiB fit
+ * Quake1 (18 MiB) but not Quake2/3 (~50/46 MiB). This cap is PER dummyfs instance and
+ * dummyfs grows on demand, so raising it reserves no RAM (the Pi 4 has GiBs). */
+#ifndef DUMMYFS_SIZE_MAX
+#define DUMMYFS_SIZE_MAX (256 * 1024 * 1024)
+#endif
+
 #endif

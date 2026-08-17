@@ -7,6 +7,7 @@ ports:
   - name: jansson
   - name: lua
   - name: sqlite3
+  - name: jq
   - name: coremark
   - name: picocom
   - name: libevent

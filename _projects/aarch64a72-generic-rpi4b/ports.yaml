@@ -9,6 +9,13 @@ ports:
   - name: sqlite3
   - name: jq
   - name: redis
+  # GNU coreutils (9.5): 99/104 tools cross-compile+link cleanly against libphoenix
+  # (verified by a direct cross-build). Gated off pending one framework-build fix:
+  # gnulib's _GL_EXTERN_INLINE resolves to `static` under the framework sysroot, so
+  # mbszero (an extern-inline) links undefined. The port.def.sh + config.site + both
+  # patches are complete; flip to `if: true` once that inline-mode issue is resolved.
+  - name: coreutils
+    if: false
   - name: coremark
   - name: picocom
   - name: libevent

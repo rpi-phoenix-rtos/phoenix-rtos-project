@@ -8,6 +8,7 @@ ports:
   - name: lua
   - name: sqlite3
   - name: jq
+  - name: redis
   - name: coremark
   - name: picocom
   - name: libevent

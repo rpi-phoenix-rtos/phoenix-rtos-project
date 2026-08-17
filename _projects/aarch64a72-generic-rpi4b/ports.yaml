@@ -6,6 +6,7 @@ ports:
   - name: pcre
   - name: jansson
   - name: lua
+  - name: sqlite3
   - name: coremark
   - name: picocom
   - name: libevent

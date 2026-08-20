@@ -35,3 +35,25 @@ ports:
   # Standalone build/verify meanwhile: scripts/build-sdl2-port.sh.
   - name: sdl2
     if: false
+  # X11 stack, migrated to the real port_manager framework as three aggregate
+  # ports (hybrid layer grouping, owner E4): xorg_libs (L1, ~24 client/toolkit
+  # libs) -> xorg_fonts (L2, freetype/fontconfig/cairo/Xft/...) -> xorg_server
+  # (L3, the kdrive fbdev-DDX Xphoenix binary), plus the xterm + windowmaker
+  # apps. All five BUILD CLEAN and resolve together (cross-root depend dedup).
+  # Gated `if: false` like sdl2: build-proven + discoverable + dependency-
+  # pullable, but the stack fetches ~30 upstream tarballs (~5 min cold), so
+  # gating avoids adding that cost + a break-point to every image build until a
+  # consumer/showcase wiring consumes them. Today the shipped X11 apps still come
+  # from scripts/build-showcase-apps.sh; migrating that path onto these ports (and
+  # flipping to `if: true`) is the follow-up. Dependency-ordered for readability
+  # (the resolver orders by `depends`, so listing order is cosmetic).
+  - name: xorg_libs
+    if: false
+  - name: xorg_fonts
+    if: false
+  - name: xorg_server
+    if: false
+  - name: xterm
+    if: false
+  - name: windowmaker
+    if: false

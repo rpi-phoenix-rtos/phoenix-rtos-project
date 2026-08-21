@@ -70,3 +70,15 @@ ports:
     if: false
   - name: windowmaker
     if: false
+  # dillo (FLTK/X11 web browser) — migrated to a framework port (depends="fltk
+  # mbedtls libiconv"; fltk pulls xorg_libs+libpng+libjpeg+zlib). Registered
+  # if:false like the rest; the image still gets Dillo from build-showcase-apps.sh
+  # until the flip. NOTE: the whole ad-hoc X11 support stack (libpng, libjpeg,
+  # fltk, libiconv, libffi, glib2, dillo) is now framework ports, so the `if:true`
+  # flip is dependency-unblocked — the remaining work is the mechanical rewire
+  # (flip these to if:true + drop the X11/glib2/fltk/dillo steps from
+  # build-showcase-apps.sh) + a full showcase build + boot to prove it. glib2/
+  # fltk/libpng/libjpeg/libiconv/libffi need no entry here — they are dependency
+  # libraries pulled transitively via `depends=`.
+  - name: dillo
+    if: false

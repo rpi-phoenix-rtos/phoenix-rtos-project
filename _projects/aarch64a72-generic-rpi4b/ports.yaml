@@ -44,9 +44,22 @@ ports:
   # pullable, but the stack fetches ~30 upstream tarballs (~5 min cold), so
   # gating avoids adding that cost + a break-point to every image build until a
   # consumer/showcase wiring consumes them. Today the shipped X11 apps still come
-  # from scripts/build-showcase-apps.sh; migrating that path onto these ports (and
-  # flipping to `if: true`) is the follow-up. Dependency-ordered for readability
-  # (the resolver orders by `depends`, so listing order is cosmetic).
+  # from scripts/build-showcase-apps.sh (ad-hoc tools/x11-port scripts).
+  #
+  # Follow-up (flip to `if: true`) is validated but deliberately GATED, not blocked:
+  #   * scripts/build-xorg-ports.sh drives port_manager on exactly these five ports
+  #     standalone (the sdl2 precedent) and rebuilds them clean in ~45 s warm — the
+  #     mechanism a future `if: true` build would use, re-verified 2026-08-21.
+  #   * The framework stack is SELF-CONTAINED (pulls only the framework `zlib`; no
+  #     dependency on the ad-hoc /tmp/x11-phoenix prefix), so xorg CAN flip safely.
+  #   * BUT the ad-hoc build-showcase-apps.sh X11 step ALSO seeds /tmp/x11-phoenix
+  #     with zlib/png/jpeg that the still-ad-hoc glib2/fltk/dillo (E4-deferred)
+  #     consume. So the ad-hoc X11 cannot be REMOVED until those migrate; flipping
+  #     `if: true` alone would build X11 twice (framework + ad-hoc) and stage two
+  #     Xphoenix binaries. The clean flip is therefore atomic with the glib2/fltk/
+  #     dillo migration (E4) — do both together, not `if: true` in isolation.
+  # Dependency-ordered for readability (the resolver orders by `depends`, so listing
+  # order is cosmetic).
   - name: xorg_libs
     if: false
   - name: xorg_fonts

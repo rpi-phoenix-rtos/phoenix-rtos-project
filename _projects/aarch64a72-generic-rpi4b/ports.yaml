@@ -98,3 +98,16 @@ ports:
   # libraries pulled transitively via `depends=`.
   - name: dillo
     if: true
+  # nano (GNU editor) + mc (Midnight Commander) — TUI apps migrated from the ad-hoc
+  # tools/ports/build-{nano,mc}.sh scripts to framework ports. nano depends="ncurses";
+  # mc depends="ncurses glib2 libiconv". ncurses needs no entry — it is a dependency
+  # library pulled transitively via depends= (like glib2/fltk above). Registered
+  # if:false (the pre-flip sdl2 precedent): build-proven via scripts/build-port.sh
+  # (/bin/nano 500 KiB + /bin/mc 2.4 MiB, both static aarch64, 0 undefined) and
+  # discoverable, but the image still gets nano/mc from build-showcase-apps.sh until
+  # those ad-hoc steps are dropped in lockstep with the if:true flip (avoids a
+  # double-build / two staged binaries).
+  - name: nano
+    if: false
+  - name: mc
+    if: false

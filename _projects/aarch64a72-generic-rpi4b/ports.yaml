@@ -64,8 +64,9 @@ ports:
   # now framework ports and staging into the image rootfs is verified (xorg_server
   # b_install -> _fs/root/usr/bin/Xphoenix, xterm/windowmaker -> _fs/root/bin). The
   # ad-hoc build-showcase-apps.sh X11 steps that overlap these are being removed in
-  # lockstep; the small extra X apps (xedit/xcalc/xclock/xlogo/xbill/xlaunch) remain
-  # ad-hoc (not framework ports yet) and self-build their /tmp/x11-phoenix prefix.
+  # lockstep. The small Xaw demo apps are now framework ports too: xorg_apps
+  # (xcalc/xclock/xlogo/xedit) + the standalone xbill port. Only xlaunch (the tiny
+  # in-repo startx supervisor, not an upstream tarball) remains ad-hoc.
   - name: xorg_libs
     if: true
   - name: xorg_fonts
@@ -75,6 +76,15 @@ ports:
   - name: xterm
     if: true
   - name: windowmaker
+    if: true
+  # Small core-X (Xaw/Xt) demo apps, migrated from tools/x11-port/build-{xcalc,
+  # xclock,xlogo,xedit,xbill}.sh. xorg_apps is an aggregate of the four clean
+  # autoconf apps; xbill is standalone (bespoke non-autoconf build) so its higher
+  # breakage risk cannot block the aggregate. Both depend only on xorg_libs
+  # (core-X clients, no Xft/fontconfig).
+  - name: xorg_apps
+    if: true
+  - name: xbill
     if: true
   # dillo (FLTK/X11 web browser) — migrated to a framework port (depends="fltk
   # mbedtls libiconv"; fltk pulls xorg_libs+libpng+libjpeg+zlib). Registered

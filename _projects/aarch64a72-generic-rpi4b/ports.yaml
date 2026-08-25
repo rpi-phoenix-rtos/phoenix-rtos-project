@@ -1,5 +1,8 @@
 ports:
   - name: busybox
+  # GNU bash 5.2.21: the interactive shell the release headline names. Runs fully
+  # interactively over the console since the libphoenix select(NULL)-blocks fix.
+  - name: bash
   - name: libnfs
   - name: zlib
   - name: lzo

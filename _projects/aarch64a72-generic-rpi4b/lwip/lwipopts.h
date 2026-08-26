@@ -19,12 +19,9 @@
  * tcpip_input() directly in the driver's (thread-context) irqThread removes
  * that cross-thread handoff. Requires LWIP_TCPIP_CORE_LOCKING (above). */
 #define LWIP_TCPIP_CORE_LOCKING_INPUT 1
-/* RX pbufs are uncached (GENET DMA pool), so the TCP/IP checksum read pays one
- * uncached bus transaction per access. Algorithm 3 (Broadcom's unrolled sum)
- * reads 32-bit words / 8 bytes per iteration vs the default algo-2 16-bit
- * reads, ~halving the uncached transactions — profiling put the checksum at
- * ~40% of per-frame inline tcp_input cost at gigabit. Bit-identical result. */
-#define LWIP_CHKSUM_ALGORITHM        3
+/* LWIP_CHKSUM_ALGORITHM=3 (uncached-pbuf checksum win) now lives in the lwip
+ * port's arch/cc.h as the guarded arch default — kept out of here to avoid a
+ * redefinition clash with that header. */
 #define LWIP_SUPPORT_CUSTOM_PBUF     1
 #define LWIP_NETIF_LOOPBACK          1
 #define LWIP_HAVE_SLIPIF             0

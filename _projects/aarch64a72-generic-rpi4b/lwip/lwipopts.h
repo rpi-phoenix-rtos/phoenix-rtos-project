@@ -11,6 +11,14 @@
  */
 
 #define LWIP_TCPIP_CORE_LOCKING      1
+/* Deliver RX inline under the core lock instead of posting each packet to the
+ * tcpip mailbox. Profiling (GENET_RXSTATS_LOG RXPROF) showed the per-packet
+ * netif->input() mbox post+wake cost ~94us/frame at gigabit — the dominant
+ * RX-throughput ceiling (raw TCP capped at ~14.5 MB/s = 12% of line rate),
+ * far above the driver drain (which keeps up with zero loss). Running
+ * tcpip_input() directly in the driver's (thread-context) irqThread removes
+ * that cross-thread handoff. Requires LWIP_TCPIP_CORE_LOCKING (above). */
+#define LWIP_TCPIP_CORE_LOCKING_INPUT 1
 #define LWIP_SUPPORT_CUSTOM_PBUF     1
 #define LWIP_NETIF_LOOPBACK          1
 #define LWIP_HAVE_SLIPIF             0

@@ -54,12 +54,18 @@
 #define LWIP_TIMEVAL_PRIVATE         0
 
 #define TCP_MSS                       1460
-/* NOTE: a large scaled window (tried 256*MSS + LWIP_WND_SCALE) BACKFIRED — it lets
- * the host burst more than the Pi's RX drain can sustain, causing drops/retransmits
- * and HALVING throughput (3.67 vs 8.5 MB/s). The real gigabit-NFS-read ceiling is the
- * RX sustained drain rate (~8 MB/s, RX buffer-aliasing), not the TCP window, so keep
- * the window modest until the RX path can sustain gigabit bursts. */
-#define TCP_WND                       (32 * TCP_MSS)
+/* Window sizing. HISTORY: a LARGE scaled window (256*MSS + LWIP_WND_SCALE) once
+ * BACKFIRED (3.67 vs 8.5 MB/s) — the host burst outran the Pi's RX drain, causing
+ * drops/retransmits. That was BEFORE cacheable-RX (256-buf pool) + recvmbox
+ * coalescing; the RX drain now sustains gigabit bursts (drop=0/rbuf_ovfl=0 at
+ * 24 MB/s). 2026-08-26: profiling showed the SOCKET-recv path is window-credit-
+ * LATENCY-bound (throughput = TCP_WND / effective-credit-RTT; 32*MSS / 1.60 ms
+ * ≈ 27.9 MB/s, matching the 27.86 measured), NOT RX-drain-bound. So raise the
+ * window to 44*MSS = 64240 B — the max without window scaling (<65535) — to widen
+ * the credit pipe; predicted socket-recv ≈ 38, NFS toward ~31-33. (The recvmbox
+ * coalesce cap stays 32 KB < tot_len's u16_t range, so bigger windows just split
+ * chains — safe.) Validated drop=0 + 128 MB NFS sha256 bit-exact before shipping. */
+#define TCP_WND                       (44 * TCP_MSS)
 #define TCP_SND_BUF                   TCP_WND
 #define TCP_SND_QUEUELEN              192
 #define ETH_PAD_SIZE                  2

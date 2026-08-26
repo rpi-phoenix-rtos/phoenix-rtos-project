@@ -43,6 +43,11 @@
 #define LWIP_TIMEVAL_PRIVATE         0
 
 #define TCP_MSS                       1460
+/* NOTE: a large scaled window (tried 256*MSS + LWIP_WND_SCALE) BACKFIRED — it lets
+ * the host burst more than the Pi's RX drain can sustain, causing drops/retransmits
+ * and HALVING throughput (3.67 vs 8.5 MB/s). The real gigabit-NFS-read ceiling is the
+ * RX sustained drain rate (~8 MB/s, RX buffer-aliasing), not the TCP window, so keep
+ * the window modest until the RX path can sustain gigabit bursts. */
 #define TCP_WND                       (32 * TCP_MSS)
 #define TCP_SND_BUF                   TCP_WND
 #define TCP_SND_QUEUELEN              192

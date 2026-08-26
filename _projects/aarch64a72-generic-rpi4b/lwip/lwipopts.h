@@ -67,6 +67,13 @@
  * chains — safe.) Validated drop=0 + 128 MB NFS sha256 bit-exact before shipping. */
 #define TCP_WND                       (44 * TCP_MSS)
 #define TCP_SND_BUF                   TCP_WND
+/* Ingress window crediting (see lwip opt.h LWIP_INGRESS_CREDIT): credit the RX
+ * window in recv_tcp at recvmbox-post time instead of deferring to the socket
+ * consumer, collapsing the one-credit-per-recv() ping-pong that pinned socket-
+ * recv at TCP_WND/credit-RTT. Buffering bounded by DEFAULT_TCP_RECVMBOX_SIZE(32)
+ * x 32 KB coalesce cap >> TCP_WND. Under HW validation (retrans==0 double-credit
+ * gate + 128 MB sha256). */
+#define LWIP_INGRESS_CREDIT           1
 #define TCP_SND_QUEUELEN              192
 #define ETH_PAD_SIZE                  2
 #define ETHARP_TABLE_MATCH_NETIF      1

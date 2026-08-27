@@ -124,3 +124,18 @@ ports:
   # stay in tools/ffmpeg-port. Flip to if:true once a consumer lands and it is image-proven.
   - name: ffmpeg
     if: false
+  # CPython 3.14.4 — a static `python3` interpreter (+ curated static C extension
+  # modules) migrated from the ad-hoc tools/python-port/build.sh to a framework
+  # port (P8 tools/→ports). depends="zlib openssl sqlite3 libffi": those four pull
+  # in the external libs for the zlib/_sqlite3/_ssl/_hashlib/_ctypes modules;
+  # _decimal uses CPython's bundled libmpdec. The cross recipe (config.site ac_cv_*
+  # cache, phoenix-py-compat.h -include shim, curated Setup.local, two configure
+  # MACHDEP patches) is applied verbatim; a matching-version host python3 (3.14.x)
+  # drives the freeze/sysconfig build steps. Registered if:false (the sdl2/nano/mc/
+  # ffmpeg pre-flip precedent): build-proven via scripts/build-port.sh — a static
+  # aarch64 python3 whose PyInit_* module set is byte-identical to the HW-verified
+  # ad-hoc binary; installs non-stripped /bin/python3 (keeps .symtab for the dlopen
+  # extension recipe) + the stdlib at /usr/local/lib/python3.14. No in-tree consumer
+  # wires it yet; flip to if:true (and drop the ad-hoc build) in lockstep, image-proven.
+  - name: python
+    if: false

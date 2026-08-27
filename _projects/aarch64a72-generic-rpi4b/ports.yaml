@@ -139,3 +139,20 @@ ports:
   # wires it yet; flip to if:true (and drop the ad-hoc build) in lockstep, image-proven.
   - name: python
     if: false
+  # QuakeSpasm (Quake I engine) — a single static aarch64 ELF on the ported SDL2 +
+  # Mesa/V3D GL stack — migrated from the ad-hoc tools/quakespasm-port build recipe
+  # (the "real-SDL" variant, build-quakespasm-sdl-phoenix.py) to a framework port
+  # (P8 tools/→ports; the game ports are the last chunk). depends="sdl2" (the stock
+  # gl_vidsdl/in_sdl/snd_sdl backends link the ported libSDL2.a); a small Phoenix
+  # backend (glue/pl_phoenix_{sys,main,stubs}) replaces main_sdl/sys_sdl_unix/pl_linux/
+  # net_bsd. The GL stack (libGL-phoenix.a/libv3d-phoenix.a in tools/.gpu-libs +
+  # external/mesa headers) is not yet a framework port, so the recipe links it by
+  # absolute path off PREFIX_PORT (same wart as the other SDL2 game ports); a prior
+  # GPU-libs build is a prerequisite. Registered if:false (the sdl2/nano/mc/ffmpeg/
+  # python pre-flip precedent): build-proven via scripts/build-port.sh — a static
+  # aarch64 quakespasm (18.5 MiB stripped, 0 undefined symbols) — and discoverable,
+  # but the image still gets the game from the ad-hoc showcase path. Flip to if:true
+  # (and drop the ad-hoc step) in lockstep once it is image-proven. The id1 game data
+  # (pak0.pak …) is a separate RUNTIME concern staged under /usr/share/quake.
+  - name: quakespasm
+    if: false

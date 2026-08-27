@@ -156,3 +156,47 @@ ports:
   # (pak0.pak …) is a separate RUNTIME concern staged under /usr/share/quake.
   - name: quakespasm
     if: false
+  # yQuake2 (Quake II engine, ref_gl1 renderer) — a single static aarch64 ELF on the
+  # ported SDL2 + Mesa/V3D GL stack — migrated from the ad-hoc tools/yquake2-port build
+  # recipe to a framework port (P8 tools/->ports; the game ports are the last chunk).
+  # depends="sdl2"; Phoenix has no dlopen, so the game-DLL + renderer-DLL seams are folded
+  # into one binary (client + integrated server + baseq2 game + ref_gl1 + a Phoenix
+  # backend). The GL stack (libGL-phoenix.a/libv3d-phoenix.a in tools/.gpu-libs +
+  # external/mesa headers) is not yet a framework port, so the recipe links it by absolute
+  # path off PREFIX_PORT (same wart as the other SDL2 game ports); a prior GPU-libs build
+  # is a prerequisite. Registered if:false (the sdl2/nano/mc/ffmpeg/python/quakespasm
+  # pre-flip precedent): build-proven via scripts/build-port.sh — a static aarch64 yquake2
+  # (18.2 MiB stripped, 0 undefined symbols) linked against today's libGL/libv3d — and
+  # discoverable, but the image still gets the game from the ad-hoc showcase path. Flip to
+  # if:true (and drop the ad-hoc step) in lockstep once it is image-proven. The baseq2 game
+  # data (paks) is a separate RUNTIME concern staged under /usr/share.
+  - name: yquake2
+    if: false
+  # quake3e (Quake III Arena engine, opengl1 renderer) — a single static aarch64 ELF on the
+  # ported SDL2 + Mesa/V3D GL stack — migrated from the ad-hoc tools/quake3-port build
+  # recipe to a framework port (P8 tools/->ports). depends="sdl2"; the game/cgame/ui modules
+  # are interpreted QVM bytecode shipped in the pak (data, not C), so there is no game-DLL
+  # fold — the client + integrated server + botlib + opengl1 renderer + bundled libjpeg +
+  # aarch64 QVM JIT link into one binary (installed as /usr/bin/quake3e). Same not-yet-
+  # portified GL-stack wart as the other SDL2 game ports (links libGL-phoenix.a/
+  # libv3d-phoenix.a by absolute path; a prior GPU-libs build is a prerequisite). Registered
+  # if:false (the sdl2/nano/mc/ffmpeg/python/quakespasm precedent): build-proven via
+  # scripts/build-port.sh — a static aarch64 quake3e (18.3 MiB stripped, 0 undefined symbols)
+  # linked against today's libGL/libv3d — and discoverable, but the image still gets the game
+  # from the ad-hoc showcase path. Flip to if:true (and drop the ad-hoc step) in lockstep
+  # once it is image-proven. The demoq3 game data (pk3s) is staged under /usr/share/quake3.
+  - name: quake3
+    if: false
+  # vkQuake (Vulkan Quake I engine) — a single static aarch64 ELF on the ported V3DV Vulkan
+  # ICD + Mesa/V3D back-end — migrated from the ad-hoc tools/vkquake-port build recipe to a
+  # framework port (P8 tools/->ports). Unlike the GL game ports above it renders via VULKAN,
+  # so it links libv3dv-phoenix.a + libv3d-phoenix.a (NOT libGL-phoenix.a) and has depends=""
+  # (its SDL usage is shimmed entirely — no libSDL2.a). Registered if:false, trusted from the
+  # prior commit that added its port.def.sh: it is structurally sound (ports_api=1, name,
+  # version 1.34, GPL-2.0-or-later license, p_build) but its build-verify is DEFERRED here —
+  # the Vulkan path needs the heavier V3DV stack (libv3dv + the generated vk-trampolines /
+  # embedded SPIR-V), so only the two GL games (yquake2/quake3) were build-verified this
+  # session. Same not-yet-portified GPU-stack wart as the GL ports. Flip to if:true (and drop
+  # the ad-hoc step) in lockstep once it is build- and image-proven.
+  - name: vkquake
+    if: false

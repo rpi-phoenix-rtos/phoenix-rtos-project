@@ -114,3 +114,13 @@ ports:
     if: false
   - name: mc
     if: false
+  # ffmpeg decode core (static libav{util,codec,format}.a + libsw{scale,resample}.a,
+  # decode-only LGPL-2.1 config: no --enable-gpl/--nonfree) — migrated from the ad-hoc
+  # tools/ffmpeg-port/build-ffmpeg-phoenix.py to a framework port (P8 tools/→ports).
+  # Registered if:false (the sdl2/nano/mc pre-flip precedent): build-proven via
+  # scripts/build-port.sh (all libav*/libsw* archives + headers install to
+  # PREFIX_A/PREFIX_H, 0 errors) and discoverable/dependency-pullable, but no in-tree
+  # consumer wires it yet — the E4 decode demos/players (e4_decode_file.c, e4_play.c)
+  # stay in tools/ffmpeg-port. Flip to if:true once a consumer lands and it is image-proven.
+  - name: ffmpeg
+    if: false

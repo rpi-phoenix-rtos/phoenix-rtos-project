@@ -12,9 +12,11 @@ ports:
   - name: sqlite3
   - name: jq
   - name: redis
-  # GNU coreutils 9.5: 99/104 tools (the 5 skipped need libphoenix header/macro work
-  # -- stat/sort/stty -- or GMP -- factor/expr). Builds at -O2 (see port.def.sh: -O0
-  # would disable gnulib's inline helpers and break the link).
+  # GNU coreutils 9.5: the full tool set (~105 programs) builds + installs. stat/sort
+  # were recovered via libphoenix statfs/RLIMIT_* additions, factor/expr via bundled
+  # mini-gmp, and stty once libphoenix gained the termios input-flag macros (2026-08-27).
+  # Builds at -O2 (see port.def.sh: -O0 would disable gnulib's inline helpers and break
+  # the link).
   - name: coreutils
   - name: coremark
   - name: picocom

@@ -123,8 +123,15 @@ contents:
     str: app {{ env.BOOT_DEVICE }} -x rpi4-vcmbox ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x posixsrv ddr ddr
+  # Two netifs: genet (built-in 1 GbE) and wifi43455 (BCM43455 over the
+  # rpi4-wifi daemon's /dev/wifidata frame seam). The wifi token carries NO
+  # arguments on purpose -- the driver then reads ssid/psk from /etc/wifi.conf,
+  # so no credential lands in the repo. It is harmless when the daemon is not
+  # running: the netif is created with the link DOWN and its join thread waits
+  # for /dev/wifidata to appear (rpi4-wifi is started from the shell, after
+  # lwip). A netif that fails to init is logged and skipped, never fatal.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC;wifi43455 ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x nfs;/;10.42.0.1;/;v4;takeover ddr ddr
   # nfsroot post-takeover: NFS now owns "/". The /dev bind above lives in the
@@ -263,7 +270,7 @@ contents:
   # nfsroot launches lwip EARLY (in the design-A block above, before the NFS
   # takeover server), so it is skipped here for that variant.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC;wifi43455 ddr ddr
   # NFS client smoke test (#153 T1): waits for a DHCP lease then mounts an NFS
   # export and reads/writes a file via the libnfs port. argv: server export file.
   # Kept as a baseline/triage probe; the fs server below is the real deliverable.

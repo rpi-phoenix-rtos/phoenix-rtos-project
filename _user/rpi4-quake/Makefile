@@ -50,7 +50,7 @@ V3D_LIB := $(GPU_LIBS)/libv3d-phoenix.a
 # archives ARE present the component links exactly as before.
 ifeq ($(and $(wildcard $(QS_LIB)),$(wildcard $(V3D_GL_LIB)),$(wildcard $(V3D_LIB))),)
 
-$(info rpi4-quake: GPU libs not present in $(GPU_LIBS), skipping (run tools/quakespasm-port/build-quakespasm-phoenix.py + tools/v3d-driver-port/build-gl-phoenix.py + build-v3d-phoenix.py to enable))
+$(info rpi4-quake: GPU libs not present in $(GPU_LIBS), skipping (run tools/quakespasm-port/build-quakespasm-phoenix.py + sources/phoenix-rtos-devices/gpu/rpi4-v3d/mesa/build-gl-phoenix.py + build-v3d-phoenix.py to enable))
 
 else
 

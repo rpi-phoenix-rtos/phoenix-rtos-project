@@ -53,7 +53,7 @@ V3D_LIB := $(GPU_LIBS)/libv3d-phoenix.a
 # default-off vs rpi4-quake in user.plo.yaml, so a skip here changes no boot image.)
 ifeq ($(and $(wildcard $(VKQUAKE_LIB)),$(wildcard $(V3DV_LIB)),$(wildcard $(V3D_LIB))),)
 
-$(info rpi4-vkquake: GPU libs not present in $(GPU_LIBS), skipping (run tools/vkquake-port/build-vkquake-phoenix.py + tools/v3d-driver-port/build-v3dv-phoenix.py + build-v3d-phoenix.py to enable))
+$(info rpi4-vkquake: GPU libs not present in $(GPU_LIBS), skipping (run tools/vkquake-port/build-vkquake-phoenix.py + sources/phoenix-rtos-devices/gpu/rpi4-v3d/mesa/build-v3dv-phoenix.py + build-v3d-phoenix.py to enable))
 
 else
 

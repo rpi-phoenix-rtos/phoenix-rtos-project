@@ -164,18 +164,16 @@ contents:
   # NFS export. The DEBUG default leaves RPI4_LOG_TO_FILE unset so this is inert.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and env.RPI4_LOG_TO_FILE | default('0') == '1' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-klogd ddr ddr
-  # psh runs /etc/rc.nfsroot rather than starting interactive directly: the Pi4
-  # has no RTC, so the clock needs one SNTP round trip before the shell is
-  # useful (otherwise every file it creates is stamped 1970). `psh -i` runs the
-  # script and exits, so the script itself opens the console and spawns the
-  # interactive shell -- exactly what the sd variant's /etc/rc.psh does. The
-  # script ships in rootfs-overlay/etc, so it reaches the NFS export through the
-  # normal build -> rootfs -> sync-netboot-tree.sh path (nothing hand-placed).
-  # psh waits for "/" to become the NFS root before reading it, and falls back to
-  # an interactive shell if the script is ever unreachable, so this cannot cost
-  # the shell.
+  # psh, launched directly. An /etc/rc.nfsroot indirection (psh -i) was tried
+  # here so the clock could be set before the shell; it is reverted because it
+  # made boot less reliable -- no-prompt boots went from 0 of 134 the day before
+  # to 5 of 88 with it, and two of those were miscounted as test failures in an
+  # unrelated investigation. Neither the `W`->`X` change for the clock step nor
+  # dropping the `T /dev/console` line removed the residual, and a boot with no
+  # shell costs far more than an unset clock (which only affects two libc/misc
+  # clock tests). Set the clock from the shell with `ntpclient -s <server>`.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x psh;-i;/etc/rc.nfsroot ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x psh ddr ddr
   # ===================================================================
   # BCM2711 EMMC2 SD-card block driver (#119/#120), netboot variant only:
   # probe-only (no -r), card-out safe, registers /dev/mmcblk0[pN] for inspection.

@@ -222,41 +222,19 @@ contents:
   #   str: app {{ env.BOOT_DEVICE }} -x rpi4-ipcprobe ddr ddr
   # The V3D bring-up diagnostics (rpi4-v3d-scout/-mesa) and the GL demo rungs
   # (rpi4-glclear/-gldraw/-glcube) were removed (hypotheses resolved; recoverable
-  # from git history). The showcase is rpi4-quake (below).
+  # from git history).
   #
-  # rpi4-quake: the Quakespasm capstone (now built from phoenix-rtos-project/_user/
-  # rpi4-quake/), bundled in loader.disk (boot-launched).
-  # Boot-launching avoids the NFS-exec size limit; prints engine init to UART.
-  # Launched on netboot + sd (the demo variants): netboot serves /id1/pak0.pak
-  # over NFS, the sd variant has it on the ext2 root at /id1; rpi4-quake's
-  # wait_for_gamedata probes both, so the same launch works on either.
-  # SKIPPED for nfsroot: that variant is the dev/exec-testing path driven by
-  # scripted psh, and Quake's continuous render loop floods the UART console,
-  # drowning the shell I/O the nfsroot variant exists to exercise.
-  # GL Quake (flagship) autostart — re-enabled 2026-06-25 (the intermittent-boot cause was the
-  # build-vs-boot race, now understood; mailbox serialization + kernel cleanups landed since).
-  # TEMP-KBD0CHK boot-to-psh
-  # - if: "{{ env.RPI4B_VARIANT | default(\'netboot\') != \'nfsroot\' }}"
-  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-quake ddr ddr
-  # --with-showcase: BUNDLE rpi4-quake into loader.disk WITHOUT `-x`, so the
-  # ~18 MB GLQuake binary is present in the boot image (it is too large to
-  # exec from the read-based NFS/ext2 loader) but is NOT auto-launched (its
-  # continuous render loop would flood the UART). Run it by hand from psh:
-  # `rpi4-quake ddr ddr` (game data lives at /id1 on the ext2 root). Gated on
-  # RPI4B_WITH_SHOWCASE=1 (exported by rebuild-rpi4b-fast.sh --with-showcase);
-  # only bundled when the tools/.gpu-libs archives were built, so a base image
-  # stays unchanged. To auto-launch instead, add `-x` here (UART floods).
-  - if: "{{ env.RPI4B_WITH_SHOWCASE | default('0') == '1' and (env.RPI4B_VARIANT | default('nfsroot')) != 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} rpi4-quake ddr ddr
-  # vkQuake (Vulkan QuakeSpasm capstone, built from phoenix-rtos-project/_user/
-  # rpi4-vkquake/): the Vulkan counterpart to rpi4-quake. loader.disk fits only one
-  # large GL/VK binary per boot, so the two SWAP: to run vkQuake, comment the
-  # rpi4-quake launch above + uncomment this line. Both apps are always built by
-  # `make -C _user`, so no Makefile change is needed to swap — only this launch line.
-  # SKIPPED for nfsroot for the same reason as rpi4-quake (render loop floods UART).
-  # TEMP-XTERM-TEST boot-to-psh (X11 testing). Re-enable for the #29 vkQuake retest.
-  # - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
-  #   str: app {{ env.BOOT_DEVICE }} -x rpi4-vkquake ddr ddr
+  # NO GAME IS BUNDLED IN loader.disk ANY MORE (owner priority 2026-09-03: keep as
+  # little ported software in the boot blob as possible). The five engines
+  # (quakespasm, yquake2, quake3e, vkquake, supertuxkart) are framework ports
+  # (ports.yaml, all `if: true`) installed into the ROOTFS at /usr/bin, and are run
+  # from psh like any other program. The two reasons the ~18 MB GLQuake ELF used to
+  # live here are both obsolete: the read-based process loader can exec large
+  # binaries from the ext2 root and from the NFS root, and the "loader.disk fits
+  # only one large GL/VK binary, so GLQuake and vkQuake swap" constraint went away
+  # with it. The `app ... rpi4-quake ddr ddr` bundle line and its commented
+  # rpi4-vkquake alternative were deleted here, and the _user/rpi4-quake /
+  # _user/rpi4-vkquake wrappers that produced those binaries were deleted with them.
   # TODO(#129) Step 3 (user-chosen 2026-06-01): USB host stack as a STANDALONE
   # daemon, out of lwip. `usb` does the full BCM2711 PCIe bridge + VL805 xHCI
   # bring-up and hosts the device stack in its OWN process/heap (isolating its

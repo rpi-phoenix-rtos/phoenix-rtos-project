@@ -10,7 +10,15 @@ compile_commands.json
 .cpptest/
 reports/
 
-# Copyrighted Quake game data — never committed. The freely-redistributable
-# shareware pak0 is fetched on demand (scripts/fetch-quake-shareware-pak.sh) or
-# by the Docker build (PAK0_URL); the full game is the user's own.
+# Game DATA staged into the rootfs overlay — never committed (copyrighted and/or
+# hundreds of MB). All of it is fetched on demand by the coordination repo's
+# scripts/stage-game-data.sh (Docker build: the PAK0*_URL / STK_ASSETS_URL build
+# args); the full retail games are the user's own.
+#   Quake I  : usr/share/quake/id1/pak0.pak            (shareware pak, ~18 MB)
+#   Quake II : usr/share/quake2/baseq2/*.pak           (demo paks, ~50 MB)
+#   Quake III: usr/share/quake3/demoq3/*.pk3           (demo paks, ~46 MB)
+#   STK 1.4  : usr/share/supertuxkart/{data,stk-assets} (~194 MB, pinned upstream)
 **/share/quake/**/*.pak
+**/share/quake2/**/*.pak
+**/share/quake3/**/*.pk3
+**/share/supertuxkart/

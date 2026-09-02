@@ -138,67 +138,106 @@ ports:
   # aarch64 python3 whose PyInit_* module set is byte-identical to the HW-verified
   # ad-hoc binary; installs non-stripped /bin/python3 (keeps .symtab for the dlopen
   # extension recipe) + the stdlib at /usr/local/lib/python3.14. No in-tree consumer
-  # wires it yet; flip to if:true (and drop the ad-hoc build) in lockstep, image-proven.
+  # FLIPPED if:true 2026-09-03 (owner directive: "why are you hand copying old
+  # binaries ... never do this"). /bin/python3 and the CPython stdlib were being
+  # carried forward onto the NFS export by hand from an ad-hoc tools/python-port
+  # build, which hid the fact that no image ever produced them. The port installs
+  # /bin/python3 plus the pure-Python stdlib at /usr/local/lib/python3.14 — which is
+  # the prefix the interpreter itself was configured with, so it finds its own
+  # stdlib with no PYTHONHOME. NOTE the previously hand-staged tree was
+  # /lib/python3.14 (the ad-hoc build's layout); that path is NOT recreated and must
+  # not be.
   - name: python
-    if: false
+    if: true
+  # wpa_supplicant 2.11 (+ wpa_cli) — the WPA2 supplicant the BCM43455 WiFi work
+  # needs to associate. Registered 2026-09-03 for the same reason as python above:
+  # /usr/bin/{wpa_supplicant,wpa_cli} were hand-copied onto the NFS export from a
+  # standalone build, so no image contained them. depends="openssl>=1.1.1a".
+  - name: wpa_supplicant
+    if: true
+  # ---------------------------------------------------------------------------
+  # GAME ENGINES (owner priority 2026-09-03: ONE image that carries EVERY game).
+  #
+  # All five engines are `if: true` and install into the ROOTFS (/usr/bin/...) —
+  # NOT into loader.disk. The boot blob carries only plo + the kernel + the
+  # servers/drivers the boot sequence needs; a game is an ordinary rootfs binary
+  # started from psh. The old arrangement bundled the ~18 MB GLQuake ELF into
+  # loader.disk because "it is too large to exec from the read-based ext2/NFS
+  # loader" — that limitation is GONE (the loader was fixed long ago; large
+  # binaries exec fine from both the ext2 root and the NFS root), and with it the
+  # "loader.disk fits only one large GL/VK binary, so GLQuake and vkQuake swap"
+  # constraint. Every game now ships in every image, for both the `sd` and the
+  # `nfsroot`/`netboot` variants.
+  #
+  # This is decision D10 ("one way to build each game; no parts of the patches
+  # lost"): the fork (external/<game>, branch phoenix-rpi4-port) is the single
+  # source of truth, each port's patch is GENERATED from it by
+  # scripts/game-port-patch.sh --regen, and the ad-hoc build paths these ports
+  # replaced are removed in the same change — so there is exactly one recipe per
+  # game and no second representation to drift.
+  #
+  # SHARED PREREQUISITE (deliberately accepted, tracked as a wart): the Mesa/V3D
+  # GPU stack is not yet a framework port, so each recipe links
+  # tools/.gpu-libs/lib{GL,v3d,v3dv}-phoenix.a and Mesa headers by absolute path
+  # and b_die's if they are absent. A ports stage therefore now REQUIRES a prior
+  # GPU-libs build (scripts/build-showcase-apps.sh --phase gpu, i.e. the
+  # --with-showcase rebuild path). Portifying the GL stack removes this from all
+  # five at once.
+  #
+  # GAME DATA is a separate RUNTIME concern, staged into the rootfs overlay by
+  # scripts/stage-game-data.sh (id1/pak0.pak, baseq2, demoq3, SuperTuxKart
+  # data/ + stk-assets/). Launchers that wire the env/args each engine needs are
+  # built by scripts/build-rootfs-helpers.sh.
+  # ---------------------------------------------------------------------------
   # QuakeSpasm (Quake I engine) — a single static aarch64 ELF on the ported SDL2 +
-  # Mesa/V3D GL stack — migrated from the ad-hoc tools/quakespasm-port build recipe
-  # (the "real-SDL" variant, build-quakespasm-sdl-phoenix.py) to a framework port
-  # (P8 tools/→ports; the game ports are the last chunk). depends="sdl2" (the stock
+  # Mesa/V3D GL stack, installed as /usr/bin/quakespasm. depends="sdl2" (the stock
   # gl_vidsdl/in_sdl/snd_sdl backends link the ported libSDL2.a); a small Phoenix
-  # backend (glue/pl_phoenix_{sys,main,stubs}) replaces main_sdl/sys_sdl_unix/pl_linux/
-  # net_bsd. The GL stack (libGL-phoenix.a/libv3d-phoenix.a in tools/.gpu-libs +
-  # external/mesa headers) is not yet a framework port, so the recipe links it by
-  # absolute path off PREFIX_PORT (same wart as the other SDL2 game ports); a prior
-  # GPU-libs build is a prerequisite. Registered if:false (the sdl2/nano/mc/ffmpeg/
-  # python pre-flip precedent): build-proven via scripts/build-port.sh — a static
-  # aarch64 quakespasm (18.5 MiB stripped, 0 undefined symbols) — and discoverable,
-  # but the image still gets the game from the ad-hoc showcase path. Flip to if:true
-  # (and drop the ad-hoc step) in lockstep once it is image-proven. The id1 game data
-  # (pak0.pak …) is a separate RUNTIME concern staged under /usr/share/quake.
+  # backend (glue/pl_phoenix_{sys,main,stubs}) replaces main_sdl/sys_sdl_unix/
+  # pl_linux/net_bsd. Replaces the ad-hoc tools/quakespasm-port
+  # build-quakespasm-sdl-phoenix.py recipe AND the _user/rpi4-quake loader.disk
+  # wrapper, both removed in the same change. The id1 game data (pak0.pak ...) is
+  # staged under /usr/share/quake/id1.
   - name: quakespasm
-    if: false
-  # yQuake2 (Quake II engine, ref_gl1 renderer) — a single static aarch64 ELF on the
-  # ported SDL2 + Mesa/V3D GL stack — migrated from the ad-hoc tools/yquake2-port build
-  # recipe to a framework port (P8 tools/->ports; the game ports are the last chunk).
-  # depends="sdl2"; Phoenix has no dlopen, so the game-DLL + renderer-DLL seams are folded
-  # into one binary (client + integrated server + baseq2 game + ref_gl1 + a Phoenix
-  # backend). The GL stack (libGL-phoenix.a/libv3d-phoenix.a in tools/.gpu-libs +
-  # external/mesa headers) is not yet a framework port, so the recipe links it by absolute
-  # path off PREFIX_PORT (same wart as the other SDL2 game ports); a prior GPU-libs build
-  # is a prerequisite. Registered if:false (the sdl2/nano/mc/ffmpeg/python/quakespasm
-  # pre-flip precedent): build-proven via scripts/build-port.sh — a static aarch64 yquake2
-  # (18.2 MiB stripped, 0 undefined symbols) linked against today's libGL/libv3d — and
-  # discoverable, but the image still gets the game from the ad-hoc showcase path. Flip to
-  # if:true (and drop the ad-hoc step) in lockstep once it is image-proven. The baseq2 game
-  # data (paks) is a separate RUNTIME concern staged under /usr/share.
+    if: true
+  # yQuake2 (Quake II engine) — a single static aarch64 ELF on the ported SDL2 +
+  # Mesa/V3D GL stack, installed as /usr/bin/yquake2. depends="sdl2"; Phoenix has no
+  # dlopen, so the game-DLL + renderer-DLL seams are folded into one binary (client
+  # + integrated server + baseq2 game + renderer + a Phoenix backend). The renderer
+  # defaults to **gl3/GLES3** — the configuration that has actually rendered on V3D
+  # 4.2, with glGenerateMipmap off by default (YQ2_GL3_MIPMAP=1 re-enables it);
+  # YQ2_RENDERER=gl1 selects the untested OpenGL-1 renderer instead. The baseq2
+  # game data is staged under /usr/share/quake2.
   - name: yquake2
-    if: false
-  # quake3e (Quake III Arena engine, opengl1 renderer) — a single static aarch64 ELF on the
-  # ported SDL2 + Mesa/V3D GL stack — migrated from the ad-hoc tools/quake3-port build
-  # recipe to a framework port (P8 tools/->ports). depends="sdl2"; the game/cgame/ui modules
-  # are interpreted QVM bytecode shipped in the pak (data, not C), so there is no game-DLL
-  # fold — the client + integrated server + botlib + opengl1 renderer + bundled libjpeg +
-  # aarch64 QVM JIT link into one binary (installed as /usr/bin/quake3e). Same not-yet-
-  # portified GL-stack wart as the other SDL2 game ports (links libGL-phoenix.a/
-  # libv3d-phoenix.a by absolute path; a prior GPU-libs build is a prerequisite). Registered
-  # if:false (the sdl2/nano/mc/ffmpeg/python/quakespasm precedent): build-proven via
-  # scripts/build-port.sh — a static aarch64 quake3e (18.3 MiB stripped, 0 undefined symbols)
-  # linked against today's libGL/libv3d — and discoverable, but the image still gets the game
-  # from the ad-hoc showcase path. Flip to if:true (and drop the ad-hoc step) in lockstep
-  # once it is image-proven. The demoq3 game data (pk3s) is staged under /usr/share/quake3.
+    if: true
+  # quake3e (Quake III Arena engine, opengl1 renderer) — a single static aarch64 ELF
+  # on the ported SDL2 + Mesa/V3D GL stack, installed as /usr/bin/quake3e.
+  # depends="sdl2"; the game/cgame/ui modules are interpreted QVM bytecode shipped in
+  # the pak (data, not C), so there is no game-DLL fold — client + integrated server +
+  # botlib + opengl1 renderer + bundled libjpeg + the aarch64 QVM JIT link into one
+  # binary. NOTE: quake3e's *Vulkan* renderer (renderervk) is NOT built here; only the
+  # OpenGL one is wired. The demoq3 game data (pk3s) is staged under /usr/share/quake3.
   - name: quake3
-    if: false
-  # vkQuake (Vulkan Quake I engine) — a single static aarch64 ELF on the ported V3DV Vulkan
-  # ICD + Mesa/V3D back-end — migrated from the ad-hoc tools/vkquake-port build recipe to a
-  # framework port (P8 tools/->ports). Unlike the GL game ports above it renders via VULKAN,
-  # so it links libv3dv-phoenix.a + libv3d-phoenix.a (NOT libGL-phoenix.a) and has depends=""
-  # (its SDL usage is shimmed entirely — no libSDL2.a). Registered if:false, trusted from the
-  # prior commit that added its port.def.sh: it is structurally sound (ports_api=1, name,
-  # version 1.34, GPL-2.0-or-later license, p_build) but its build-verify is DEFERRED here —
-  # the Vulkan path needs the heavier V3DV stack (libv3dv + the generated vk-trampolines /
-  # embedded SPIR-V), so only the two GL games (yquake2/quake3) were build-verified this
-  # session. Same not-yet-portified GPU-stack wart as the GL ports. Flip to if:true (and drop
-  # the ad-hoc step) in lockstep once it is build- and image-proven.
+    if: true
+  # vkQuake (Vulkan Quake I engine) — installed as /usr/bin/vkquake. Unlike the GL
+  # game ports it renders via VULKAN, so it links libv3dv-phoenix.a +
+  # libv3d-phoenix.a (NOT libGL-phoenix.a) and has depends="" (its SDL usage is
+  # shimmed entirely — no libSDL2.a). Its link carries --build-id (V3DV's
+  # init_uuids() needs the note or no Vulkan device is created) and
+  # -z stack-size=32 MiB, matching the HW-verified _user/rpi4-vkquake link this
+  # replaces. Shares the id1 data with quakespasm (/usr/share/quake/id1).
   - name: vkquake
-    if: false
+    if: true
+  # SuperTuxKart 1.4 (3D kart racing, SP/GLES3 renderer) — installed as
+  # /usr/bin/supertuxkart. Its recipe is a pinned upstream tarball (stk-code 1.4)
+  # plus 10 flat portability patches; every dependency that is not bundled in
+  # stk-code/lib is a framework port and is pulled via depends= (sdl2 libjpeg libpng
+  # zlib xorg_fonts curl mbedtls sqlite3 libogg libvorbis libsamplerate harfbuzz).
+  # It was previously build-verified only standalone via scripts/build-port.sh and
+  # was NOT registered here at all, so no image build ever produced it — hence the
+  # "SuperTuxKart is not on the card" claim. It is registered now. STK needs BOTH
+  # asset roots at runtime (data/ from the pinned tarball, stk-assets/ from the
+  # pinned 1.4 asset archive) under /usr/share/supertuxkart — see
+  # scripts/stage-game-data.sh — plus the /bin/stk launcher (psh cannot set env
+  # vars, and STK locates its data through SUPERTUXKART_{DATADIR,ASSETS_DIR,SAVEDIR}).
+  - name: supertuxkart
+    if: true

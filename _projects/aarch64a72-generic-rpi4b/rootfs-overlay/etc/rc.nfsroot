@@ -17,7 +17,11 @@
 #
 # The server address matches the lab host the boot script already hardcodes for
 # the NFS export lines. Change both together if the lab addressing changes.
-W /bin/ntpclient -s 10.42.0.1 -t 5
+# X, not W: the shell must never depend on the clock step finishing. A boot was
+# observed where ntpclient did not complete and this script therefore never
+# reached the psh launch below, leaving no way in. The clock is then set a moment
+# after the prompt appears instead of just before it.
+X /bin/ntpclient -s 10.42.0.1 -t 5
 # Controlling terminal on the console, then the interactive shell (the same
 # hand-over the sd variant's rc.psh does -- `psh -i` runs a script and exits,
 # so the script has to spawn the interactive shell itself).

@@ -8,7 +8,22 @@ armstub=phoenix-armstub8-rpi4.bin
 kernel=kernel8.img
 initramfs loader.disk 0x08000000
 enable_uart=1
-uart_2ndstage=1
+# uart_2ndstage: VideoCore second-stage firmware logging on our console UART.
+#
+# OFF by default. start4.elf shares this UART with Phoenix, and on a USB
+# enumeration hiccup it dumps xHCI command/event/context traces -- observed at
+# 191,000 lines in a single run, which swamps the console, starves psh of
+# bandwidth and destroys the test cycle (it happened three times in one night,
+# once preventing boot from reaching a prompt at all). The strings are in
+# start4.elf, not in any Phoenix binary, so this switch is the only control we
+# have over them.
+#
+# Set to 1 when diagnosing the firmware/early-boot stage: it is what produces
+# the "Read start4/kernel8.img/loader.disk" and MESS: lines that
+# scripts/summarize-rpi4b-uart-log.py uses to report a firmware-load phase.
+# Without it, a boot that dies before Phoenix starts is silent rather than
+# self-explaining -- that is the trade this default makes.
+uart_2ndstage=0
 init_uart_baud=115200
 init_uart_clock=48000000
 dtoverlay=miniuart-bt

@@ -72,7 +72,15 @@ include $(binary.mk)
 # the $(PREFIX_PROG)$(NAME) target alone proved insufficient through the strip/install
 # chain). The dependency is spurious for compilation but the stub is tiny, so the
 # recompile is free — the point is to guarantee the link picks up new archives.
-$(OBJS.$(NAME)): $(QS_LIB) $(V3D_GL_LIB) $(V3D_LIB)
+#
+# The component is named LITERALLY here, not via $(NAME): binary.mk resets `NAME :=`
+# at its end, so after the include above $(OBJS.$(NAME)) expands to the empty string —
+# and GNU make SILENTLY IGNORES a prerequisite line whose target list is empty (no
+# error, no warning). That made this guard a no-op from the day it was added, so the
+# 2026-07-13 stale-quake bug it exists to prevent was still live: an archive rebuild
+# left the old stub .o + old binary in place and `make -C _user all` reported
+# "Nothing to be done", shipping a STALE engine (observed again 2026-09-02).
+$(OBJS.rpi4-quake): $(QS_LIB) $(V3D_GL_LIB) $(V3D_LIB)
 
 endif
 

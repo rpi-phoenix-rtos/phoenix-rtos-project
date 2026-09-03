@@ -106,14 +106,20 @@ ports:
   # nano (GNU editor) + mc (Midnight Commander) — TUI apps migrated from the ad-hoc
   # tools/ports/build-{nano,mc}.sh scripts to framework ports. nano depends="ncurses";
   # mc depends="ncurses glib2 libiconv". ncurses needs no entry — it is a dependency
-  # library pulled transitively via depends= (like glib2/fltk above). Registered
-  # if:false (the pre-flip sdl2 precedent): build-proven via scripts/build-port.sh
-  # (/bin/nano 500 KiB + /bin/mc 2.4 MiB, both static aarch64, 0 undefined) and
-  # discoverable, but the image still gets nano/mc from build-showcase-apps.sh until
-  # those ad-hoc steps are dropped in lockstep with the if:true flip (avoids a
-  # double-build / two staged binaries).
+  # library pulled transitively via depends= (like glib2/fltk above).
+  #
+  # nano is now if:true and its showcase step is deleted in the same commit. Doing
+  # only one of the two would either double-build it or stage two different
+  # binaries, and the tools/ copy is written LAST (build-showcase-apps.sh --phase
+  # stage runs after the ports stage into the same rootfs), so it would silently
+  # win — which is precisely the trap that made a source fix in the port dir never
+  # reach the shipped nano.
+  #
+  # mc stays if:false for now: its chain (glib2, libiconv, ncurses) still has
+  # legacy tools/ steps, and the framework mc needs its own Pi verification after
+  # the mc-support stub retirement changed its codeset path. One port at a time.
   - name: nano
-    if: false
+    if: true
   - name: mc
     if: false
   # ffmpeg decode core (static libav{util,codec,format}.a + libsw{scale,resample}.a,

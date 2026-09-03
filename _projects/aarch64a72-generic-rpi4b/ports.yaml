@@ -115,13 +115,19 @@ ports:
   # win — which is precisely the trap that made a source fix in the port dir never
   # reach the shipped nano.
   #
-  # mc stays if:false for now: its chain (glib2, libiconv, ncurses) still has
-  # legacy tools/ steps, and the framework mc needs its own Pi verification after
-  # the mc-support stub retirement changed its codeset path. One port at a time.
+  # Both are framework-only now, each flipped in lockstep with deleting its
+  # build-showcase-apps.sh step. mc's Pi verification (2026-09-03) cleared the one
+  # real risk from retiring its mc-support stub: its codeset moved from a forced
+  # "UTF-8" to libphoenix's "ANSI_X3.4-1968", i.e. mc now takes the 8-bit
+  # str_ascii_init() path -- and the full two-panel TUI renders correctly, because
+  # ncurses draws the frame with VT100 ACS escapes rather than UTF-8 box glyphs.
+  # Flipping mc also puts its whole chain (glib2, libiconv, ncurses, libffi, zlib)
+  # on the framework path, which is what retires the tools/ "libiconv" that is not
+  # libiconv at all but a hand-written ASCII/UTF-8 stub.
   - name: nano
     if: true
   - name: mc
-    if: false
+    if: true
   # ffmpeg decode core (static libav{util,codec,format}.a + libsw{scale,resample}.a,
   # decode-only LGPL-2.1 config: no --enable-gpl/--nonfree) — migrated from the ad-hoc
   # tools/ffmpeg-port/build-ffmpeg-phoenix.py to a framework port (P8 tools/→ports).

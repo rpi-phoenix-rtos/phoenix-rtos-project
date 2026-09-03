@@ -139,7 +139,8 @@ ports:
   - name: ffmpeg
     if: false
   # CPython 3.14.4 — a static `python3` interpreter (+ curated static C extension
-  # modules) migrated from the ad-hoc tools/python-port/build.sh to a framework
+  # modules) migrated from the ad-hoc tools/python-port/build.sh (deleted 2026-09-03,
+  # once this port replaced it) to a framework
   # port (P8 tools/→ports). depends="zlib openssl sqlite3 libffi": those four pull
   # in the external libs for the zlib/_sqlite3/_ssl/_hashlib/_ctypes modules;
   # _decimal uses CPython's bundled libmpdec. The cross recipe (config.site ac_cv_*
@@ -153,6 +154,7 @@ ports:
   # FLIPPED if:true 2026-09-03 (owner directive: "why are you hand copying old
   # binaries ... never do this"). /bin/python3 and the CPython stdlib were being
   # carried forward onto the NFS export by hand from an ad-hoc tools/python-port
+  # (since deleted)
   # build, which hid the fact that no image ever produced them. The port installs
   # /bin/python3 plus the pure-Python stdlib at /usr/local/lib/python3.14 — which is
   # the prefix the interpreter itself was configured with, so it finds its own

@@ -156,6 +156,14 @@ contents:
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
+  # Boot system-info banner, at the SAME position in the launch order as the
+  # non-nfsroot copy below (after rpi4-audio, before usb) so the boot console
+  # reads the same whichever rootfs is in use. It was missing here, which is why
+  # a netboot console showed no banner while an SD boot did (owner report
+  # 2026-09-04) -- the variants must differ only in where "/" comes from.
+  # scripts/diff-boot-variants.py renders all three and lists any asymmetry.
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-sysinfo ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x usb ddr ddr
   # Kernel-log capture daemon (task #31, nfsroot variant, USER logging mode only —

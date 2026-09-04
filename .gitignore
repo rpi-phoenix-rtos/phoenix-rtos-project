@@ -22,3 +22,9 @@ reports/
 **/share/quake2/**/*.pak
 **/share/quake3/**/*.pk3
 **/share/supertuxkart/
+
+# Game data staged into the rootfs overlay by the coordination repo's
+# scripts/stage-game-data.sh (id1, baseq2, demoq3, SuperTuxKart assets --
+# hundreds of MB, and not ours to redistribute). The overlay's tracked content
+# stays tracked; only this staged tree is ignored.
+_projects/*/rootfs-overlay/usr/

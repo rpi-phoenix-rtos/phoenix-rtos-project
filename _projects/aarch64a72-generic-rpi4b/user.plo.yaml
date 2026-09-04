@@ -272,7 +272,7 @@ contents:
   # netboot ONLY: in the sd variant 10.42.0.1 is absent, so this just stalls
   # ~18 s on ECONNABORTED and floods getservbyport warnings — skip it there.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'netboot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x nfs-smoke;10.42.0.1;/;/etc/hostname ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x nfs-smoke;10.42.0.1;/;/etc/passwd ddr ddr
   # NFS filesystem server (#153 T2/T3b): mount the NFS export as a Phoenix
   # filesystem at /mnt (the mountpoint is created by the single mkdir line
   # above — do NOT add a second `-x mkdir` here). The server portCreate()s,

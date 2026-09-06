@@ -23,6 +23,15 @@ ports:
   - name: libevent
   - name: mbedtls
   - name: openssl
+  # Trusted root CA store (Mozilla/NSS bundle, shipped as certifi's cacert.pem).
+  # Installs /etc/ssl/certs/ca-certificates.crt + /etc/ssl/cert.pem, which is what
+  # every TLS client we ship looks for by default: dillo's tls_mbedtls.c tries
+  # /etc/ssl/certs/ca-certificates.crt FIRST, openssl is configured
+  # --openssldir=/etc/ssl so its default CAfile is /etc/ssl/cert.pem (and python3's
+  # ssl module inherits that), and curl is now built --with-ca-bundle pointing at
+  # the same file. Nothing `depends=` on this port -- it ships data, not a library
+  # -- so it MUST be listed here or it is never built.
+  - name: ca_certificates
   - name: micropython
   - name: dropbear
     use: [zlib]

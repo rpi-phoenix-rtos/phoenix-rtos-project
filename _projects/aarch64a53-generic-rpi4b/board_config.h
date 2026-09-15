@@ -20,4 +20,12 @@
 #define PL011_TTY_BASE  0xfe201000u
 #define PL011_TTY_CLOCK 48000000u
 
+/* This board wants the kernel's full serial boot log, so opt in to the klog
+ * console mirror (log/log.c defaults it to 0 — it is shared code and the mirror
+ * changes console behaviour for every board that does not ask for it). Kept in
+ * step with the a72 board_config. */
+#ifndef KLOG_CONSOLE_MIRROR
+#define KLOG_CONSOLE_MIRROR 1
+#endif
+
 #endif

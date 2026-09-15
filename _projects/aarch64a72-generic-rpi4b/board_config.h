@@ -98,6 +98,13 @@
 #define RPI4_LOG_TO_FILE 0
 #endif
 
+/* This board wants the kernel's full serial boot log, so opt in to the klog
+ * console mirror (log/log.c defaults it to 0 — it is shared code and the mirror
+ * changes console behaviour for every board that does not ask for it). */
+#ifndef KLOG_CONSOLE_MIRROR
+#define KLOG_CONSOLE_MIRROR 1
+#endif
+
 /* Enlarge the dummyfs RAM-disk cap (default 32 MiB in dummyfs_internal.h, which #includes
  * this board_config.h and honors an override). On this board /tmp is a RAM-backed dummyfs
  * (user.plo.yaml: `dummyfs-tmp -m /tmp`), so its size caps how much game data can be

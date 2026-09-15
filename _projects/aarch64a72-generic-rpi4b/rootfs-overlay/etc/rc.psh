@@ -3,10 +3,17 @@
 # `W` = wait for the command to exit (init/daemonize), `X` = start in the
 # background, `T` = open a controlling terminal.
 #
-# STAGED BRING-UP (#120/#118): this first iteration is intentionally minimal so a
-# boot failure is bisectable — it exercises the newly-used capabilities (ext2 as
-# `/`, exec-from-ext2) with only proven servers. usb (keyboard) + lwip (net) are
-# added back in the next iteration once root-from-SD is confirmed.
+# DELIBERATELY MINIMAL, and not for the reason the old note here gave. Every
+# driver and server — usb (keyboard), lwip (net), vcmbox, fb, audio, gpio, hwrng,
+# thermal, sysinfo — is started by PLO from the syspage list in user.plo.yaml,
+# before this script runs. Verified against the shipped SD image 2026-09-15 by
+# reading the `app ram0 -x ...` lines out of its own loader.disk.
+#
+# So this script only adds the userspace layer on top, and the overlap with plo's
+# list (bind/dummyfs-tmp/posixsrv) is idempotent. The old note claimed usb and
+# lwip were still to be "added back in the next iteration", which was true during
+# the #120/#118 staged bring-up and has been false ever since — it reads as though
+# an SD boot has no keyboard, which it does.
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 export HOME=/root
 # Bind devfs onto /dev (bind retries the lookup; tolerates devfs coming up late).

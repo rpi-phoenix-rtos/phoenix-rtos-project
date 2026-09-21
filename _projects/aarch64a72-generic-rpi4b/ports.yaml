@@ -18,6 +18,18 @@ ports:
   # Builds at -O2 (see port.def.sh: -O0 would disable gnulib's inline helpers and break
   # the link).
   - name: coreutils
+  # Unwinding busybox: these replace the 15 names busybox uniquely supplied, with
+  # the real GNU tools we can support alongside coreutils + bash. None of them
+  # needs a `use:` -- grep is built --disable-perl-regexp so it does not want
+  # PCRE2, tar invokes the compressors as external programs rather than linking
+  # them, and sed/gzip/bzip2/xz are standalone. A port that nothing `depends=` on
+  # ships nothing unless it is listed HERE.
+  - name: grep
+  - name: sed
+  - name: tar
+  - name: gzip
+  - name: bzip2
+  - name: xz
   - name: coremark
   - name: picocom
   - name: libevent

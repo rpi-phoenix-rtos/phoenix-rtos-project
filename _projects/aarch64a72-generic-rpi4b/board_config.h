@@ -131,7 +131,9 @@
  * every image stage) but NOT in plo -- giving a half-applied boot log with the
  * armstub and TR markers back but plo's 'A' still missing. Measured 2026-09-25.
  * This is a property of board_config.h generally, not of this macro: the same
- * is true of PLO_SMP_ENABLE.
+ * is true of PLO_SMP_ENABLE. scripts/check-early-markers.sh in the
+ * coordination repo reports whether all three components actually picked the
+ * current value up, and names the half-applied case.
  */
 #ifndef RPI4_EARLY_MARKERS
 #define RPI4_EARLY_MARKERS 0

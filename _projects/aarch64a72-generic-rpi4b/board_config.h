@@ -98,6 +98,45 @@
 #define RPI4_LOG_TO_FILE 0
 #endif
 
+/* Early bring-up markers (D9).
+ *
+ * The very first bytes on the wire, long before any console driver exists:
+ *   armstub          '1' '4' '2' '5' per core, then "AS0"
+ *   kernel8-reloc    "TR0".."TR3", one per core
+ *   plo              hal_exitToEL1's 'A' + the EL digit it exited from
+ *
+ * They are single characters on purpose: four cores share one unlocked,
+ * polled UART, so multi-character strings would interleave into garbage.
+ * That makes them unreadable to anyone who is not holding this table, which
+ * is why a stock boot log should not open with twenty of them.
+ *
+ * Default 0 keeps the published boot log clean. Set to 1 when triaging a hang
+ * that happens before "hal: console_init done" -- these markers are the only
+ * evidence that exists that early, so the capability is kept, not deleted.
+ *
+ * Three consumers reach this one definition:
+ *   - plo's hal/aarch64/generic/_init.S reads it via #if (config.h includes
+ *     this header).
+ *   - The armstub and kernel8-reloc .S files are assembled standalone, with no
+ *     board_config.h on the include path, so build.project greps this macro and
+ *     passes a matching -DRPI4_EARLY_MARKERS (the same derive-from-one-place
+ *     mechanism RPI4_LOG_TO_FILE uses above).
+ *   - scripts/summarize-rpi4b-uart-log.py reads the markers when present, and
+ *     treats their absence as "disabled", not as a boot failure.
+ *
+ * ⚠ Rebuild with --scope core after changing this AND touch
+ * plo/hal/aarch64/generic/_init.S. Editing this header alone does not
+ * invalidate plo's cached objects, so a --scope core rebuild picks the change
+ * up in the armstub and the reloc trampoline (both re-assembled from scratch
+ * every image stage) but NOT in plo -- giving a half-applied boot log with the
+ * armstub and TR markers back but plo's 'A' still missing. Measured 2026-09-25.
+ * This is a property of board_config.h generally, not of this macro: the same
+ * is true of PLO_SMP_ENABLE.
+ */
+#ifndef RPI4_EARLY_MARKERS
+#define RPI4_EARLY_MARKERS 0
+#endif
+
 /* This board wants the kernel's full serial boot log, so opt in to the klog
  * console mirror (log/log.c defaults it to 0 — it is shared code and the mirror
  * changes console behaviour for every board that does not ask for it). */

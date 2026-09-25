@@ -147,6 +147,21 @@ b_build_project() {
 }
 
 
+rpi4b_earlyMarkersFlag() {
+	# The armstub and the kernel8-reloc trampoline are assembled standalone --
+	# no board_config.h on their include path -- so derive -DRPI4_EARLY_MARKERS
+	# from that one header rather than duplicating the switch here. Same
+	# grep-the-macro mechanism scripts/rebuild-rpi4b-fast.sh uses for
+	# RPI4_LOG_TO_FILE, so the two .S files and plo cannot disagree. (D9)
+	if grep -Eq '^[[:space:]]*#define[[:space:]]+RPI4_EARLY_MARKERS[[:space:]]+1\b' \
+			"${PROJECT_PATH}/board_config.h"; then
+		printf '%s\n' "-DRPI4_EARLY_MARKERS=1"
+	else
+		printf '%s\n' "-DRPI4_EARLY_MARKERS=0"
+	fi
+}
+
+
 rpi4b_buildArmstub() {
 	local src="${PROJECT_PATH}/phoenix-armstub8-rpi4.S"
 	local outdir="${PREFIX_BUILD}/armstub"
@@ -157,7 +172,7 @@ rpi4b_buildArmstub() {
 
 	mkdir -p "${outdir}"
 
-	"${CC}" -c -nostdlib -ffreestanding "${src}" -o "${obj}"
+	"${CC}" -c -nostdlib -ffreestanding "$(rpi4b_earlyMarkersFlag)" "${src}" -o "${obj}"
 	"${LD}" -nostdlib -Ttext=0x0 -o "${elf}" "${obj}"
 	"${objcopy}" -O binary "${elf}" "${bin}"
 
@@ -180,7 +195,7 @@ rpi4b_buildKernelImage() {
 	mkdir -p "${outdir}"
 	cp -a "${plo_img}" "${payload_bin}"
 
-	"${CC}" -c -nostdlib -ffreestanding "${src}" -o "${tramp_obj}"
+	"${CC}" -c -nostdlib -ffreestanding "$(rpi4b_earlyMarkersFlag)" "${src}" -o "${tramp_obj}"
 
 	(
 		cd "${outdir}" || exit 1

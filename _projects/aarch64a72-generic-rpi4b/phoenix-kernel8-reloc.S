@@ -44,6 +44,14 @@
 	isb
 	.endm
 
+	/* Early bring-up markers (D9): every uart_putc site here emits one char of
+	 * "TR<n>", one per core, on an unlocked polled UART shared by four cores.
+	 * Gated off by default so a stock boot log stays clean; set
+	 * RPI4_EARLY_MARKERS in board_config.h to 1 to restore them when triaging
+	 * a hang before the kernel console exists. Gating the macro body keeps the
+	 * #if out of the per-core relocation paths. uart_reinit_115200 is NOT a
+	 * marker and is always emitted. */
+#if defined(RPI4_EARLY_MARKERS) && (RPI4_EARLY_MARKERS != 0)
 	.macro uart_putc imm
 991:
 	ldr x3, =PL011_TTY_BASE
@@ -53,6 +61,10 @@
 	mov w4, #\imm
 	str w4, [x3, #UARTDR_OFFSET]
 	.endm
+#else
+	.macro uart_putc imm
+	.endm
+#endif
 
 
 _start:

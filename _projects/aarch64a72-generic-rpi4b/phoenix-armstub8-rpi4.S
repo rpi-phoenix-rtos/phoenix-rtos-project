@@ -161,6 +161,15 @@ _start:
 	isb
 	.endm
 
+	/* Early bring-up marker output (D9). Every uart_putc site in this file is
+	 * a single-character progress marker -- four cores share this unlocked,
+	 * polled UART, so anything longer would interleave into garbage. Gated off
+	 * by default so a stock boot log does not open with twenty opaque
+	 * characters; set RPI4_EARLY_MARKERS in board_config.h to 1 to get them
+	 * back when triaging a hang this early. Gating the macro body (rather than
+	 * each call site) keeps the #if out of the errata instruction sequences.
+	 * uart_reinit_115200 below is NOT a marker and is always emitted. */
+#if defined(RPI4_EARLY_MARKERS) && (RPI4_EARLY_MARKERS != 0)
 	.macro uart_putc imm
 991:
 	ldr	x8, =PL011_TTY_BASE
@@ -170,6 +179,10 @@ _start:
 	mov	w9, #\imm
 	str	w9, [x8, #UARTDR_OFFSET]
 	.endm
+#else
+	.macro uart_putc imm
+	.endm
+#endif
 
 	.org 0xd4
 	.ascii "FIQS"

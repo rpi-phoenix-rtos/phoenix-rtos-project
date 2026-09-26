@@ -32,8 +32,18 @@ dtoverlay=miniuart-bt
 # keeping the firmware framebuffer for the HDMI console (full vc4-kms-v3d would
 # hand the display to a kernel DRM driver we don't have, breaking fbcon).
 dtoverlay=vc4-fkms-v3d
+# VideoCore core (bus) clock: 500 MHz, the Pi 4 default that Raspberry Pi OS uses.
+# It clocks the fabric the V3D, HVS and DMA traffic crosses; on 2026-09-26 raising
+# it from 250 to 500 gave SuperTuxKart +13 % fps (7.43 -> 8.39, 4 interleaved trials,
+# 0 exceptions). The earlier 250 MHz pin was an April UART-stability workaround that
+# no longer applies: the PL011 console has its own 48 MHz clock (init_uart_clock).
+#
+# force_turbo=1 keeps the core clock FIXED at core_freq. Without it the firmware
+# scales the core clock at runtime, and the Bluetooth mini-UART (miniuart-bt; its
+# baud divisor is computed once from GET_CLOCK_RATE at driver start) would drift
+# off baud. It also holds the ARM at its maximum clock, as before.
 force_turbo=1
-core_freq=250
+core_freq=500
 # Skip the firmware bootloader delay (default 1 s) and rainbow splash —
 # we are netbooting / development-running, no need for user interaction
 # windows.

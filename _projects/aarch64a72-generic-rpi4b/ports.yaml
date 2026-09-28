@@ -1,4 +1,21 @@
 ports:
+  # ---------------------------------------------------------------------------
+  # GPU STACK SELECTION (owner directive 2026-09-28, GPU migration phase P1).
+  #
+  # The default image carries ONE GPU stack: the render server rpi4-v3d-async +
+  # the display server rpi4-kms + shmsrv (phoenix-rtos-devices, started at boot
+  # by user.plo.yaml), libdrm_phoenix, upstream Mesa (mesa_drm: GBM/EGL/GLES/GL,
+  # v3dv), SDL2 KMSDRM, X.Org modesetting + glamor, Wayland (labwc, XFCE). Those
+  # ports are listed at the end of this file.
+  #
+  # RPI4B_GPU_LEGACY=1 (scripts/rebuild-rpi4b-fast.sh --gpu-legacy) builds the
+  # previous image instead, for A/B: the in-process-winsys game ports, the kdrive
+  # Xphoenix server and the old launchers, and none of the new stack. The two
+  # sets are exclusive (the `if:` below); the old ports install into the rootfs
+  # only with USE rootfs, so the default image's *_drm relinks can still pull
+  # them as build dependencies without shipping them.
+  # TODO(TD-24): the legacy entries go with the old GPU stack (P3).
+  # ---------------------------------------------------------------------------
   - name: busybox
   # GNU bash 5.2.21: the interactive shell the release headline names. Runs fully
   # interactively over the console since the libphoenix select(NULL)-blocks fix.
@@ -97,8 +114,11 @@ ports:
     if: true
   - name: xorg_fonts
     if: true
+  # xorg_server: the kdrive Xphoenix of the legacy image. The default image builds it
+  # only as xorg_server_drm's dependency (libmd.a), without installing Xphoenix.
   - name: xorg_server
-    if: true
+    if: {{ bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
   - name: xterm
     if: true
   - name: windowmaker
@@ -193,6 +213,9 @@ ports:
   # ---------------------------------------------------------------------------
   # GAME ENGINES (owner priority 2026-09-03: ONE image that carries EVERY game).
   #
+  # ⚠ These five are the LEGACY image's engines (RPI4B_GPU_LEGACY=1, see the top of
+  # the file). The default image ships the *_drm builds listed at the end.
+  #
   # All five engines are `if: true` and install into the ROOTFS (/usr/bin/...) —
   # NOT into loader.disk. The boot blob carries only plo + the kernel + the
   # servers/drivers the boot sequence needs; a game is an ordinary rootfs binary
@@ -233,7 +256,8 @@ ports:
   # wrapper, both removed in the same change. The id1 game data (pak0.pak ...) is
   # staged under /usr/share/quake/id1.
   - name: quakespasm
-    if: true
+    if: {{ bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
   # yQuake2 (Quake II engine) — a single static aarch64 ELF on the ported SDL2 +
   # Mesa/V3D GL stack, installed as /usr/bin/yquake2. depends="sdl2"; Phoenix has no
   # dlopen, so the game-DLL + renderer-DLL seams are folded into one binary (client
@@ -243,7 +267,8 @@ ports:
   # YQ2_RENDERER=gl1 selects the untested OpenGL-1 renderer instead. The baseq2
   # game data is staged under /usr/share/quake2.
   - name: yquake2
-    if: true
+    if: {{ bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
   # quake3e (Quake III Arena engine, opengl1 renderer) — a single static aarch64 ELF
   # on the ported SDL2 + Mesa/V3D GL stack, installed as /usr/bin/quake3e.
   # depends="sdl2"; the game/cgame/ui modules are interpreted QVM bytecode shipped in
@@ -252,7 +277,8 @@ ports:
   # binary. NOTE: quake3e's *Vulkan* renderer (renderervk) is NOT built here; only the
   # OpenGL one is wired. The demoq3 game data (pk3s) is staged under /usr/share/quake3.
   - name: quake3
-    if: true
+    if: {{ bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
   # vkQuake (Vulkan Quake I engine) — installed as /usr/bin/vkquake. Unlike the GL
   # game ports it renders via VULKAN, so it links libv3dv-phoenix.a +
   # libv3d-phoenix.a (NOT libGL-phoenix.a) and has depends="" (its SDL usage is
@@ -261,7 +287,8 @@ ports:
   # -z stack-size=32 MiB, matching the HW-verified _user/rpi4-vkquake link this
   # replaces. Shares the id1 data with quakespasm (/usr/share/quake/id1).
   - name: vkquake
-    if: true
+    if: {{ bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
   # SuperTuxKart 1.4 (3D kart racing, SP/GLES3 renderer) — installed as
   # /usr/bin/supertuxkart. Its recipe is a pinned upstream tarball (stk-code 1.4)
   # plus 10 flat portability patches; every dependency that is not bundled in
@@ -275,4 +302,74 @@ ports:
   # scripts/stage-game-data.sh — plus the /bin/stk launcher (psh cannot set env
   # vars, and STK locates its data through SUPERTUXKART_{DATADIR,ASSETS_DIR,SAVEDIR}).
   - name: supertuxkart
-    if: true
+    if: {{ bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  # ---------------------------------------------------------------------------
+  # THE GPU STACK (default image). Every entry is `use: [rootfs]`: without it a
+  # new-stack port builds into its own private prefix and ships nothing. Their
+  # libraries (libdrm_phoenix, mesa_drm, sdl2_kmsdrm, wayland, wayland_phoenix,
+  # libepoxy, libxshmfence_phoenix) come along as dependencies.
+  #
+  # TODO(TD-25): yquake2_drm, quake3_drm and supertuxkart_drm RELINK the objects of
+  # the legacy game ports, and xorg_server_drm takes libmd.a from xorg_server, so a
+  # default build still compiles those four ports and the old Mesa archives they
+  # link (tools/.gpu-libs, --with-showcase's gpu phase). None of it is installed.
+  # P3 folds the substitution into the game ports themselves (MIGRATION §4 item 4).
+  #
+  # TODO(TD-26): the plain command names (quakespasm, quake2, quake3, vkquake, stk,
+  # startx, startx_gpu, xfce-session) are installed by these ports as copies of the
+  # *-drm programs; P4 names the programs themselves.
+  #
+  # Not here yet: the Atril PDF viewer (tools/gpu-lane/atril-wayland has no port)
+  # and Weston (no shipped user). The servers are core components
+  # (phoenix-rtos-devices), not ports.
+  # ---------------------------------------------------------------------------
+  # drmprobe, the DRM API self-test.
+  - name: libdrm_phoenix
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  # The smoke tests: kmscube (GBM/EGL/GLES on card0) and vkcube-drm (v3dv + VK_KHR_display).
+  - name: kmscube_drm
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  - name: vkcube_drm
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  # The games. /usr/bin/quakespasm, /usr/bin/quake2, /usr/bin/quake3, /usr/bin/vkquake
+  # and /bin/stk run these (TD-26 above); game data: scripts/stage-game-data.sh.
+  - name: quakespasm_drm
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  - name: yquake2_drm
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  - name: quake3_drm
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  - name: vkquake_drm
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  - name: supertuxkart_drm
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  # The X desktop: Xorg-drm (modesetting + glamor, DRI3/Present, phxhid input),
+  # /bin/startx (= startx-drm, the old launcher's client layouts) and the GL window
+  # client eglx11-demo (x11demo). The X clients (xterm, wmaker, xclock, ...) are the
+  # ports listed above.
+  - name: xorg_server_drm
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs, x11demo]
+  # The Wayland desktop: the session bus, GTK 3 (its schemas and settings), XFCE 4.20
+  # (/bin/xfce-session) and labwc + foot + fuzzel + swaybg (/bin/labwc-desktop.sh).
+  - name: dbus
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  - name: gtk3_wayland
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  - name: xfce_wayland
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]
+  - name: labwc_desktop
+    if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
+    use: [rootfs]

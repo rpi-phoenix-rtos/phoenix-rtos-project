@@ -159,8 +159,7 @@ ports:
   # startx, startx_gpu, xfce-session) are installed by these ports as copies of the
   # *-drm programs; P4 names the programs themselves.
   #
-  # Not here yet: the Atril PDF viewer (tools/gpu-lane/atril-wayland has no port)
-  # and Weston (no shipped user). The servers are core components
+  # Not here: Weston (no shipped user). The servers are core components
   # (phoenix-rtos-devices), not ports.
   # ---------------------------------------------------------------------------
   # drmprobe, the DRM API self-test.
@@ -177,6 +176,10 @@ ports:
   # engine patch is generated from our fork (external/<game>, branch phoenix-rpi4-port)
   # by scripts/game-port-patch.sh --regen. Game data (id1, baseq2, demoq3, STK data/ +
   # stk-assets/) is a runtime concern: scripts/stage-game-data.sh.
+  # Each GL game is ONE program with SDL's KMSDRM and Wayland drivers: full screen from
+  # psh, a window on the desktop through its XFCE menu entry (Games) =
+  # /bin/game-window.sh <game> (sdl2_kmsdrm below). vkquake stays KMSDRM only (no V3DV
+  # Wayland WSI).
   - name: quakespasm_drm
     use: [rootfs]
   - name: yquake2_drm
@@ -186,6 +189,12 @@ ports:
   - name: vkquake_drm
     use: [rootfs]
   - name: supertuxkart_drm
+    use: [rootfs]
+  # SDL (KMSDRM + Wayland) itself is a library; USE rootfs installs the desktop's game
+  # launcher /bin/game-window.sh <game>, game-window-autostart.sh, game-window-quit.sh and
+  # /etc/xdg/labwc-xfce-games/ (the games session: `export CONF_DIR=/etc/xdg/labwc-xfce-games`
+  # before /bin/xfce-session).
+  - name: sdl2_kmsdrm
     use: [rootfs]
   # The X desktop: Xorg-drm (modesetting + glamor, DRI3/Present, phxhid input),
   # /bin/startx (= startx-drm, the old launcher's client layouts) and the GL window
@@ -202,4 +211,15 @@ ports:
   - name: xfce_wayland
     use: [rootfs]
   - name: labwc_desktop
+    use: [rootfs]
+  # The desktop applications (XFCE applications menu entries):
+  # the video players: /usr/bin/ffplay (SDL KMSDRM + Wayland), /bin/video-play (a window
+  # under the desktop, else full screen), /usr/bin/gtk-video (GTK 3, menu: Multimedia) and,
+  # with USE demo, the clips in /usr/share/video-demo, the video session's labwc config
+  # /etc/xdg/labwc-xfce-video/ and a "Video Demo" menu entry.
+  - name: video_player
+    use: [rootfs, gtk, demo]
+  # The PDF viewer: Atril with Poppler built in, /usr/bin/atril (menu: Office), a sample
+  # document /usr/share/doc/phoenix/sample.pdf.
+  - name: atril_wayland
     use: [rootfs]

@@ -336,31 +336,31 @@ ports:
     use: [rootfs]
   # The games. /usr/bin/quakespasm, /usr/bin/quake2, /usr/bin/quake3, /usr/bin/vkquake
   # and /bin/stk run these (TD-26 above); game data: scripts/stage-game-data.sh.
-  # USE wayland: also the WINDOWED clone of each GL game for the Wayland desktop (M8:
-  # quakespasm-wl, quake2-wl, quake3-wl, stk-wl) and its XFCE menu entry (Games), run by
-  # /bin/game-window.sh (sdl2_kmsdrm below).
+  # Each GL game is ONE program with SDL's KMSDRM and Wayland drivers: full screen from psh,
+  # a window on the desktop through its XFCE menu entry (Games) = /bin/game-window.sh <game>
+  # (sdl2_kmsdrm below). vkquake stays KMSDRM only (no V3DV Wayland WSI).
   - name: quakespasm_drm
     if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
-    use: [rootfs, wayland]
+    use: [rootfs]
   - name: yquake2_drm
     if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
-    use: [rootfs, wayland]
+    use: [rootfs]
   - name: quake3_drm
     if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
-    use: [rootfs, wayland]
+    use: [rootfs]
   - name: vkquake_drm
     if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
     use: [rootfs]
   - name: supertuxkart_drm
     if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
-    use: [rootfs, wayland]
-  # SDL's Wayland video driver for the windowed games and ffplay-wl (USE wayland), and the
-  # windowed-games session helpers (USE rootfs): /bin/game-window.sh <game>,
-  # game-window-autostart.sh, game-window-quit.sh, /etc/xdg/labwc-xfce-m8/ (the games
-  # session: `export CONF_DIR=/etc/xdg/labwc-xfce-m8` before /bin/xfce-session).
+    use: [rootfs]
+  # SDL (KMSDRM + Wayland) itself is a library; USE rootfs installs the desktop's game
+  # launcher /bin/game-window.sh <game>, game-window-autostart.sh, game-window-quit.sh and
+  # /etc/xdg/labwc-xfce-games/ (the games session: `export CONF_DIR=/etc/xdg/labwc-xfce-games`
+  # before /bin/xfce-session).
   - name: sdl2_kmsdrm
     if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
-    use: [rootfs, wayland]
+    use: [rootfs]
   # The X desktop: Xorg-drm (modesetting + glamor, DRI3/Present, phxhid input),
   # /bin/startx (= startx-drm, the old launcher's client layouts) and the GL window
   # client eglx11-demo (x11demo). The X clients (xterm, wmaker, xclock, ...) are the
@@ -383,13 +383,13 @@ ports:
     if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
     use: [rootfs]
   # The desktop applications (XFCE applications menu entries):
-  # the video players (M10): /usr/bin/ffplay-drm (full screen from psh), /usr/bin/ffplay-wl
-  # (a desktop window), /bin/video-play (picks one), /usr/bin/gtk-video (GTK 3, menu:
-  # Multimedia) and, with USE demo, the test clips + the m10 labwc config in /usr/share/m10
-  # and a "Video Demo" menu entry.
+  # the video players: /usr/bin/ffplay (SDL KMSDRM + Wayland), /bin/video-play (a window
+  # under the desktop, else full screen), /usr/bin/gtk-video (GTK 3, menu: Multimedia) and,
+  # with USE demo, the clips in /usr/share/video-demo, the video session's labwc config
+  # /etc/xdg/labwc-xfce-video/ and a "Video Demo" menu entry.
   - name: video_player
     if: {{ not bool(env.RPI4B_GPU_LEGACY) }}
-    use: [rootfs, wayland, gtk, demo]
+    use: [rootfs, gtk, demo]
   # The PDF viewer: Atril with Poppler built in, /usr/bin/atril (menu: Office), a sample
   # document /usr/share/doc/phoenix/sample.pdf.
   - name: atril_wayland

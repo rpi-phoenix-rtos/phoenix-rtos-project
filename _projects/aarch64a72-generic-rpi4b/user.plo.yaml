@@ -150,8 +150,30 @@ contents:
     str: app {{ env.BOOT_DEVICE }} -x rpi4-thermal ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-hwrng ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
+  # rpi4-fb (/dev/fb0) only in an RPI4B_GPU_LEGACY=1 image: the old GPU apps' display.
+  # TODO(TD-27): hevc-play and fbprobe still write /dev/fb0; they need the legacy image
+  # until hevc-play shows its frames through a KMS dumb buffer (P3).
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) not in ['', 'no', 'false', 'n', '0'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
+  # GPU stack servers (MIGRATION P1, phoenix-rtos-devices): the render server
+  # rpi4-v3d-async (/dev/v3d-async, /dev/dri/renderD128), the display server
+  # rpi4-kms (/dev/kms = /dev/dri/card0, /kmsbuf) and shmsrv (/shm). Every GPU
+  # program (games, X, Wayland) is their client. Launched after rpi4-vcmbox and
+  # posixsrv, before psh; v3d-async before kms: `-G` connects to it (and waits up
+  # to 10 s for its node, as all of these start together). Options = the proven
+  # desktop cycles: -r 1 -m serial -i (one dispatch thread, serial hardware order,
+  # IRQ completion); -G -p 96 -C (render-fence-gated flips, a 96 MiB scan-out pool
+  # below 1 GiB, console handover while a plane is shown). -f: stay in the
+  # foreground (nothing waits for a detach here). ⚠ plo registers one alias per
+  # program name: never list any of these three twice in one rendered variant.
+  # Not in an RPI4B_GPU_LEGACY=1 image: rpi4-kms and the old in-process winsys
+  # would both drive the firmware display, rpi4-v3d-async and the old games the V3D.
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-async;-f;-r;1;-m;serial;-i ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-kms;-f;-G;-p;96;-C ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x shmsrv;-f ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
@@ -207,8 +229,18 @@ contents:
   # netboot variant only: keep the sd variant's exec-from-card path (#120)
   # free of an extra process while that intermittent bug is being debugged.
   # nfsroot launches this in its post-takeover block.
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
+  # rpi4-fb (/dev/fb0) only in an RPI4B_GPU_LEGACY=1 image: the old GPU apps' display.
+  # TODO(TD-27): hevc-play and fbprobe still write /dev/fb0; they need the legacy image
+  # until hevc-play shows its frames through a KMS dumb buffer (P3).
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) not in ['', 'no', 'false', 'n', '0'] }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
+  # The GPU stack servers: see the nfsroot copy above (same order, same options).
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-async;-f;-r;1;-m;serial;-i ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-kms;-f;-G;-p;96;-C ddr ddr
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+    str: app {{ env.BOOT_DEVICE }} -x shmsrv;-f ddr ddr
   # BCM2711 GPIO observer: registers /dev/gpio (read-only register snapshot +
   # per-pin devctl query). Needs devfs at /dev. netboot variant only (same
   # rationale as rpi4-fb: keep the sd exec-from-card path minimal). nfsroot

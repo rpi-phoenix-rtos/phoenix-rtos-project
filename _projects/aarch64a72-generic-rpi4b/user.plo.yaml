@@ -128,8 +128,9 @@ contents:
   # arguments on purpose -- the driver then reads ssid/psk from /etc/wifi.conf,
   # so no credential lands in the repo. It is harmless when the daemon is not
   # running: the netif is created with the link DOWN and its join thread waits
-  # for /dev/wifidata to appear (rpi4-wifi is started from the shell, after
-  # lwip). A netif that fails to init is logged and skipped, never fatal.
+  # for /dev/wifidata to appear (rpi4-wifi starts at boot too, below, but
+  # registers it only after its firmware download). A netif that fails to init
+  # is logged and skipped, never fatal.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC;wifi43455 ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
@@ -145,16 +146,11 @@ contents:
   # nfsroot device drivers + psh: launched HERE, after the takeover, so they
   # see /dev on the NFS root. (For netboot/sd these run at their normal
   # positions below, gated out of nfsroot.) usb does PCIe/VL805 bring-up;
-  # thermal/hwrng/fb/gpio register their /dev nodes; psh is the shell.
+  # thermal/hwrng/gpio register their /dev nodes; psh is the shell.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-thermal ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-hwrng ddr ddr
-  # rpi4-fb (/dev/fb0) only in an RPI4B_GPU_LEGACY=1 image: the old GPU apps' display.
-  # TODO(TD-27): hevc-play and fbprobe still write /dev/fb0; they need the legacy image
-  # until hevc-play shows its frames through a KMS dumb buffer (P3).
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) not in ['', 'no', 'false', 'n', '0'] }}"
-    str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
   # GPU stack servers (MIGRATION P1, phoenix-rtos-devices): the render server
   # rpi4-v3d-async (/dev/v3d-async, /dev/dri/renderD128), the display server
   # rpi4-kms (/dev/kms = /dev/dri/card0, /kmsbuf) and shmsrv (/shm). Every GPU
@@ -166,18 +162,25 @@ contents:
   # below 1 GiB, console handover while a plane is shown). -f: stay in the
   # foreground (nothing waits for a detach here). ⚠ plo registers one alias per
   # program name: never list any of these three twice in one rendered variant.
-  # Not in an RPI4B_GPU_LEGACY=1 image: rpi4-kms and the old in-process winsys
-  # would both drive the firmware display, rpi4-v3d-async and the old games the V3D.
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-async;-f;-r;1;-m;serial;-i ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-kms;-f;-G;-p;96;-C ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x shmsrv;-f ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
+  # BCM43455 WiFi daemon (/dev/wifi, /dev/wifidata): brings the radio up and
+  # serves the wifi43455 netif, which joins the network in /etc/wifi.conf (none
+  # shipped; `wifi connect <ssid> <psk>` writes it). -f: stay in the foreground
+  # and wait (up to 60 s) for the root file system, since the firmware is read
+  # from /lib/firmware/brcm/ on it -- here the NFS root, taken over after lwip.
+  # An image built without the firmware logs one line and the daemon exits.
+  # Its mailbox calls go through rpi4-vcmbox (started above).
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-wifi;-f ddr ddr
   # Boot system-info banner, at the SAME position in the launch order as the
   # non-nfsroot copy below (after rpi4-audio, before usb) so the boot console
   # reads the same whichever rootfs is in use. It was missing here, which is why
@@ -222,29 +225,16 @@ contents:
   # nfsroot launches this in its post-takeover block.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-hwrng ddr ddr
-  # VideoCore HDMI framebuffer: registers /dev/fb0 (read/write byte access +
-  # geometry devctl) over the plo-allocated 32-bpp surface. Needs devfs at /dev.
-  # Read-only at startup (no drawing) so it never disturbs the pl011-tty boot
-  # console, which owns the same surface. Bails (-ENODEV) if no framebuffer.
-  # netboot variant only: keep the sd variant's exec-from-card path (#120)
-  # free of an extra process while that intermittent bug is being debugged.
-  # nfsroot launches this in its post-takeover block.
-  # rpi4-fb (/dev/fb0) only in an RPI4B_GPU_LEGACY=1 image: the old GPU apps' display.
-  # TODO(TD-27): hevc-play and fbprobe still write /dev/fb0; they need the legacy image
-  # until hevc-play shows its frames through a KMS dumb buffer (P3).
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) not in ['', 'no', 'false', 'n', '0'] }}"
-    str: app {{ env.BOOT_DEVICE }} -x rpi4-fb ddr ddr
   # The GPU stack servers: see the nfsroot copy above (same order, same options).
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-v3d-async;-f;-r;1;-m;serial;-i ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-kms;-f;-G;-p;96;-C ddr ddr
-  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' and (env.RPI4B_GPU_LEGACY | default('') | lower) in ['', 'no', 'false', 'n', '0'] }}"
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x shmsrv;-f ddr ddr
   # BCM2711 GPIO observer: registers /dev/gpio (read-only register snapshot +
-  # per-pin devctl query). Needs devfs at /dev. netboot variant only (same
-  # rationale as rpi4-fb: keep the sd exec-from-card path minimal). nfsroot
-  # launches this in its post-takeover block.
+  # per-pin devctl query). Needs devfs at /dev. netboot variant only (keep the sd
+  # exec-from-card path minimal). nfsroot launches this in its post-takeover block.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   # BCM2711 PWM audio: registers /dev/audio0 (3.5mm jack via PWM1 on GPIO40/41).
@@ -252,6 +242,11 @@ contents:
   # attended. netboot variant only (same minimal-sd-path rationale as rpi4-gpio).
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
+  # BCM43455 WiFi daemon: see the nfsroot copy above. sd only: the netboot
+  # variant's "/" is a RAM dummyfs with no /lib/firmware (its NFS mount is /mnt),
+  # so the daemon could only time out there.
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-wifi;-f ddr ddr
   # Boot system-info banner (build stamp, uptime, HW-RNG sample, device inventory).
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-sysinfo ddr ddr

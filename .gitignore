@@ -28,3 +28,9 @@ reports/
 # hundreds of MB, and not ours to redistribute). The overlay's tracked content
 # stays tracked; only this staged tree is ignored.
 _projects/*/rootfs-overlay/usr/
+
+# Vendor WiFi firmware staged into the rootfs overlay by the coordination repo's
+# scripts/fetch-wifi-firmware.sh (BCM43455 firmware + CLM under the Cypress
+# licence, pinned linux-firmware commit + sha256). Fetched at build time, never
+# committed.
+_projects/*/rootfs-overlay/lib/firmware/

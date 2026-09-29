@@ -1,0 +1,27 @@
+# /etc/wifi.conf -- the WiFi network to join (WPA2-PSK).
+#
+# No network is configured in this image. The simple way to add one is the
+# shell command
+#
+#     wifi connect <ssid> <passphrase>
+#
+# which writes /etc/wifi.conf (readable by its owner only), waits for the DHCP
+# lease and prints the address. The network is joined again after every reboot
+# until you run `wifi disconnect`, which removes the file. `wifi status` shows
+# the wanted network, the radio state and the address; `wifi scan` lists the
+# access points in range.
+#
+# To configure it by hand instead, copy this file to /etc/wifi.conf, fill in
+# the two lines below and remove their leading "#". The WiFi interface (wl)
+# re-reads the file every few seconds, so a change takes effect without a
+# reboot. One key=value per line; '#' starts a comment; spaces around the value
+# are ignored. The passphrase is 8-63 characters and may contain '=' and
+# spaces (psh passes quotes through literally, so a passphrase with a space
+# has to be written here rather than given to `wifi connect`). Not supported
+# yet: an ssid containing a space, and a 64-digit hex key.
+#
+#     ssid=MyNetwork
+#     psk=my secret passphrase
+#
+# Ethernet stays the default route while it has an address; WiFi takes the
+# default route when Ethernet has none (e.g. no cable).

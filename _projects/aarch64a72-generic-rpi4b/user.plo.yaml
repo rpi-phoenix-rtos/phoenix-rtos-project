@@ -128,8 +128,9 @@ contents:
   # arguments on purpose -- the driver then reads ssid/psk from /etc/wifi.conf,
   # so no credential lands in the repo. It is harmless when the daemon is not
   # running: the netif is created with the link DOWN and its join thread waits
-  # for /dev/wifidata to appear (rpi4-wifi is started from the shell, after
-  # lwip). A netif that fails to init is logged and skipped, never fatal.
+  # for /dev/wifidata to appear (rpi4-wifi starts at boot too, below, but
+  # registers it only after its firmware download). A netif that fails to init
+  # is logged and skipped, never fatal.
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x lwip;genet:0xFD580000:189:190:PHY:bcm54213pe:0.1:irq:MAC;wifi43455 ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
@@ -171,6 +172,15 @@ contents:
     str: app {{ env.BOOT_DEVICE }} -x rpi4-gpio ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
+  # BCM43455 WiFi daemon (/dev/wifi, /dev/wifidata): brings the radio up and
+  # serves the wifi43455 netif, which joins the network in /etc/wifi.conf (none
+  # shipped; `wifi connect <ssid> <psk>` writes it). -f: stay in the foreground
+  # and wait (up to 60 s) for the root file system, since the firmware is read
+  # from /lib/firmware/brcm/ on it -- here the NFS root, taken over after lwip.
+  # An image built without the firmware logs one line and the daemon exits.
+  # Its mailbox calls go through rpi4-vcmbox (started above).
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'nfsroot' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-wifi;-f ddr ddr
   # Boot system-info banner, at the SAME position in the launch order as the
   # non-nfsroot copy below (after rpi4-audio, before usb) so the boot console
   # reads the same whichever rootfs is in use. It was missing here, which is why
@@ -232,6 +242,11 @@ contents:
   # attended. netboot variant only (same minimal-sd-path rationale as rpi4-gpio).
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-audio ddr ddr
+  # BCM43455 WiFi daemon: see the nfsroot copy above. sd only: the netboot
+  # variant's "/" is a RAM dummyfs with no /lib/firmware (its NFS mount is /mnt),
+  # so the daemon could only time out there.
+  - if: "{{ env.RPI4B_VARIANT | default('nfsroot') == 'sd' }}"
+    str: app {{ env.BOOT_DEVICE }} -x rpi4-wifi;-f ddr ddr
   # Boot system-info banner (build stamp, uptime, HW-RNG sample, device inventory).
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x rpi4-sysinfo ddr ddr

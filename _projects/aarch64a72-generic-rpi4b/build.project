@@ -14,9 +14,10 @@ RPI4B_QEMU_MEMORY_SIZE="${RPI4B_QEMU_MEMORY_SIZE:-3b400000}"
 export PCI_EXPRESS_BCM2711_INDEXED_CFG=y
 
 #
-# lwIP configuration — only the GENET driver is supported on Pi 4.
-# WiFi/IPsec are parked behind the Ethernet tiers; disable their
-# subtrees so the lwip build doesn't pull in their dependencies.
+# lwIP configuration. LWIP_WIFI_BUILD=no drops lwIP's own WiFi subtree (the
+# Cypress WHD stack) and IPsec is unused: the Pi 4 netifs are genet and
+# wifi43455, the lwIP end of the rpi4-wifi daemon (phoenix-rtos-devices), which
+# owns the BCM43455 and reads its firmware from /lib/firmware/brcm/.
 #
 export LWIPOPTS_DIR="$(pwd)/_projects/aarch64a72-generic-rpi4b/lwip"
 export LWIP_IPSEC_BUILD=no

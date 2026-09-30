@@ -131,10 +131,12 @@ ports:
   # not be.
   - name: python
     if: true
-  # wpa_supplicant 2.11 (+ wpa_cli) — the WPA2 supplicant the BCM43455 WiFi work
-  # needs to associate. Registered 2026-09-03 for the same reason as python above:
-  # /usr/bin/{wpa_supplicant,wpa_cli} were hand-copied onto the NFS export from a
-  # standalone build, so no image contained them. depends="openssl>=1.1.1a".
+  # wpa_supplicant 2.11 (+ wpa_cli). Registered 2026-09-03 for the same reason as
+  # python above: /usr/bin/{wpa_supplicant,wpa_cli} were hand-copied onto the NFS
+  # export from a standalone build, so no image contained them. depends="openssl>=3.5".
+  # NOTE: built with CONFIG_DRIVER_WIRED only (802.1X/EAP on a wired port). The
+  # BCM43455 WiFi join does NOT use it: rpi4-wifi drives the firmware's own WPA2
+  # supplicant (sup_wpa + WSEC_PMK), so WiFi does not depend on OpenSSL at all.
   - name: wpa_supplicant
     if: true
   # ---------------------------------------------------------------------------

@@ -194,6 +194,11 @@ ports:
   # The Wayland desktop: the session bus, GTK 3 (its schemas and settings), XFCE 4.20
   # (/bin/xfce-session, XFCE_AUTOSTART: /bin/xfce-autostart.sh) and labwc + foot + fuzzel +
   # swaybg (/bin/labwc-desktop.sh).
+  # The XKB keyboard data (xkeyboard-config 2.48, MIT) at /usr/share/X11/xkb: what
+  # libxkbcommon (wayland_phoenix) compiles rules/model/layout keymaps from. Nothing
+  # `depends=` on it -- it ships data -- so it MUST be listed here (G6).
+  - name: xkeyboard_config
+    use: [rootfs]
   - name: dbus
     use: [rootfs]
   - name: gtk3_wayland

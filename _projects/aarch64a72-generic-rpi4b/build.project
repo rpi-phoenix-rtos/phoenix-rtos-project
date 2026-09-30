@@ -122,17 +122,10 @@ b_build_project() {
 			;;
 	esac
 
-	# Build the in-tree user applications (phoenix-rtos-project/_user/) into
-	# PREFIX_PROG_STRIPPED. Every other Phoenix target wires this in its
-	# b_build_project; aarch64a72-generic-rpi4b is the project whose b_build_project
-	# (this one, sourced after the shared target file) overrides the empty target
-	# default, so it must do the _user build itself.
-	#
-	# The game engines are NOT here: rpi4-quake / rpi4-vkquake were deleted
-	# 2026-09-03 when the five games became framework ports (ports.yaml) installing
-	# into the rootfs at /usr/bin instead of being bundled into loader.disk.
-	b_log "Building user applications"
-	make -C "_user" all install
+	# The in-tree user applications (phoenix-rtos-project/_user/: hello, hellocpp and
+	# the libgraph demos) are NOT built here: they are demos and test fixtures, so they
+	# ship only in a test build (b_build_test_project below). The game engines are
+	# framework ports (ports.yaml) installing into the rootfs at /usr/bin.
 
 	fastlane_stageRootDummyfs
 	fastlane_stagePshApplets
@@ -145,6 +138,16 @@ b_build_project() {
 	else
 		rm -f "${rootfs_dtb}"
 	fi
+}
+
+
+# The `test` stage (build.sh test; scripts/rebuild-rpi4b-fast.sh --with-tests): the
+# in-tree user applications, which phoenix-rtos-tests runs (/usr/bin/hellocpp in
+# cpp/test.yaml, /usr/bin/hello in psh/test-touch.py). A release build has no test
+# stage, so none of them reaches the shipped rootfs.
+b_build_test_project() {
+	b_log "Building user applications (test build)"
+	make -C "_user" all install
 }
 
 

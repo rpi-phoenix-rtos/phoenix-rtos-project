@@ -34,3 +34,9 @@ _projects/*/rootfs-overlay/usr/
 # licence, pinned linux-firmware commit + sha256). Fetched at build time, never
 # committed.
 _projects/*/rootfs-overlay/lib/firmware/
+
+# Desktop fonts staged into the rootfs overlay by the coordination repo's
+# scripts/stage-desktop-fonts.sh at image-build time (DejaVu TTFs from the host's
+# fonts-dejavu package, the fontconfig config and its cache): never committed.
+_projects/*/rootfs-overlay/etc/fonts/
+_projects/*/rootfs-overlay/var/cache/fontconfig/

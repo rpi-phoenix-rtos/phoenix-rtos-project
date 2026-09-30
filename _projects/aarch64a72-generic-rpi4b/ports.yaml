@@ -140,8 +140,8 @@ ports:
   # ---------------------------------------------------------------------------
   # THE GPU STACK. Every entry is `use: [rootfs]`: without it such a port builds
   # into its own private prefix and ships nothing. Their
-  # libraries (libdrm_phoenix, mesa_drm, sdl2_kmsdrm, wayland, wayland_phoenix,
-  # libepoxy, libxshmfence_phoenix) come along as dependencies.
+  # libraries (libdrm_phoenix, mesa_drm, sdl2_kmsdrm, wayland_phoenix, libepoxy,
+  # libxshmfence_phoenix) come along as dependencies.
   #
   # The servers are core components (phoenix-rtos-devices), not ports.
   # ---------------------------------------------------------------------------

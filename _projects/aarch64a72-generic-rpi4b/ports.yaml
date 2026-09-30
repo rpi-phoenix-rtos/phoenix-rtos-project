@@ -30,8 +30,6 @@ ports:
   - name: gzip
   - name: bzip2
   - name: xz
-  - name: coremark
-  - name: picocom
   - name: libevent
   - name: mbedtls
   - name: openssl
@@ -108,16 +106,6 @@ ports:
     if: true
   - name: mc
     if: true
-  # ffmpeg decode core (static libav{util,codec,format}.a + libsw{scale,resample}.a,
-  # decode-only LGPL-2.1 config: no --enable-gpl/--nonfree) — migrated from the ad-hoc
-  # tools/ffmpeg-port/build-ffmpeg-phoenix.py to a framework port (P8 tools/→ports).
-  # Registered if:false (the sdl2/nano/mc pre-flip precedent): build-proven via
-  # scripts/build-port.sh (all libav*/libsw* archives + headers install to
-  # PREFIX_A/PREFIX_H, 0 errors) and discoverable/dependency-pullable, but no in-tree
-  # consumer wires it yet — the E4 decode demos/players (e4_decode_file.c, e4_play.c)
-  # stay in tools/ffmpeg-port. Flip to if:true once a consumer lands and it is image-proven.
-  - name: ffmpeg
-    if: false
   # CPython 3.14.4 — a static `python3` interpreter (+ curated static C extension
   # modules) migrated from the ad-hoc tools/python-port/build.sh (deleted 2026-09-03,
   # once this port replaced it) to a framework
@@ -155,16 +143,19 @@ ports:
   # libraries (libdrm_phoenix, mesa_drm, sdl2_kmsdrm, wayland, wayland_phoenix,
   # libepoxy, libxshmfence_phoenix) come along as dependencies.
   #
-  # Not here: Weston (no shipped user). The servers are core components
-  # (phoenix-rtos-devices), not ports.
+  # The servers are core components (phoenix-rtos-devices), not ports.
   # ---------------------------------------------------------------------------
-  # drmprobe, the DRM API self-test.
+  # The GPU stack's self-tests ship only in a test build (RPI4B_WITH_TESTS=1, set by
+  # scripts/rebuild-rpi4b-fast.sh --with-tests): drmprobe (the DRM API self-test,
+  # libdrm_phoenix USE rootfs), kmscube (GBM/EGL/GLES on card0) and vkcube (v3dv +
+  # VK_KHR_display). libdrm_phoenix itself is always built: everything below needs it.
   - name: libdrm_phoenix
-    use: [rootfs]
-  # The smoke tests: kmscube (GBM/EGL/GLES on card0) and vkcube (v3dv + VK_KHR_display).
+    use: {{ ["rootfs"] if bool(env.RPI4B_WITH_TESTS) }}
   - name: kmscube_drm
+    if: {{ bool(env.RPI4B_WITH_TESTS) }}
     use: [rootfs]
   - name: vkcube_drm
+    if: {{ bool(env.RPI4B_WITH_TESTS) }}
     use: [rootfs]
   # The games: single static ELFs in the ROOTFS (never loader.disk), each on SDL2
   # KMSDRM + Mesa (GL/GLES; vkquake_drm on v3dv). /usr/bin/quakespasm, /usr/bin/quake2,

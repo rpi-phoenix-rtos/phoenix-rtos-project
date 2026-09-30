@@ -24,6 +24,10 @@ ports:
   # PCRE2, tar invokes the compressors as external programs rather than linking
   # them, and sed/gzip/bzip2/xz are standalone. A port that nothing `depends=` on
   # ships nothing unless it is listed HERE.
+  # busybox_config no longer builds its own grep/egrep/fgrep, sed, tar, gzip/gunzip/
+  # zcat or unxz/xzcat (one binary per program: /bin comes first on PATH, so the
+  # busybox copies used to shadow these). The bzip2 port ships only libbz2, so
+  # busybox's bzip2/bunzip2/bzcat stay.
   - name: grep
   - name: sed
   - name: tar

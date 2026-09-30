@@ -46,8 +46,12 @@ contents:
   # the design-A block below (it has no /mnt), so this line and the two
   # below are skipped for it; the nfsroot `-x mkdir;/dev` there is fine because
   # its `if:` gate is mutually exclusive with this one.
+  # -p: the sd variant's "/" is the persistent ext2 root, where /dev and /mnt
+  # already exist from the previous boot (and from the image), so a plain mkdir
+  # printed "mkdir: failed to create /dev directory: File exists" (and the same
+  # for /mnt) on every SD boot. Needs a psh mkdir that knows -p (an older one creates a "-p" dir).
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
-    str: app {{ env.BOOT_DEVICE }} -x mkdir;/dev;/mnt ddr ddr
+    str: app {{ env.BOOT_DEVICE }} -x mkdir;-p;/dev;/mnt ddr ddr
   - if: "{{ env.RPI4B_VARIANT | default('nfsroot') != 'nfsroot' }}"
     str: app {{ env.BOOT_DEVICE }} -x bind;devfs;/dev ddr ddr
   # POSIX server: anonymous pipes, /dev/{null,zero,urandom,full}, ptys,

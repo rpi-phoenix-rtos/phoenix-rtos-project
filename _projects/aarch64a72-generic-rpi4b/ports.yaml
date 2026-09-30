@@ -155,24 +155,20 @@ ports:
   # libraries (libdrm_phoenix, mesa_drm, sdl2_kmsdrm, wayland, wayland_phoenix,
   # libepoxy, libxshmfence_phoenix) come along as dependencies.
   #
-  # TODO(TD-26): the plain command names (quakespasm, quake2, quake3, vkquake, stk,
-  # startx, startx_gpu, xfce-session) are installed by these ports as copies of the
-  # *-drm programs; P4 names the programs themselves.
-  #
   # Not here: Weston (no shipped user). The servers are core components
   # (phoenix-rtos-devices), not ports.
   # ---------------------------------------------------------------------------
   # drmprobe, the DRM API self-test.
   - name: libdrm_phoenix
     use: [rootfs]
-  # The smoke tests: kmscube (GBM/EGL/GLES on card0) and vkcube-drm (v3dv + VK_KHR_display).
+  # The smoke tests: kmscube (GBM/EGL/GLES on card0) and vkcube (v3dv + VK_KHR_display).
   - name: kmscube_drm
     use: [rootfs]
   - name: vkcube_drm
     use: [rootfs]
   # The games: single static ELFs in the ROOTFS (never loader.disk), each on SDL2
   # KMSDRM + Mesa (GL/GLES; vkquake_drm on v3dv). /usr/bin/quakespasm, /usr/bin/quake2,
-  # /usr/bin/quake3, /usr/bin/vkquake and /bin/stk run them (TD-26 above). Each port's
+  # /usr/bin/quake3, /usr/bin/vkquake and /bin/stk (the launchers) run them. Each port's
   # engine patch is generated from our fork (external/<game>, branch phoenix-rpi4-port)
   # by scripts/game-port-patch.sh --regen. Game data (id1, baseq2, demoq3, STK data/ +
   # stk-assets/) is a runtime concern: scripts/stage-game-data.sh.
@@ -197,13 +193,14 @@ ports:
   - name: sdl2_kmsdrm
     use: [rootfs]
   # The X desktop: Xorg-drm (modesetting + glamor, DRI3/Present, phxhid input),
-  # /bin/startx (= startx-drm, the old launcher's client layouts) and the GL window
+  # /bin/startx (the desktop launcher: action, wmaker, browse [url]) and the GL window
   # client eglx11-demo (x11demo). The X clients (xterm, wmaker, xclock, ...) are the
   # ports listed above.
   - name: xorg_server_drm
     use: [rootfs, x11demo]
   # The Wayland desktop: the session bus, GTK 3 (its schemas and settings), XFCE 4.20
-  # (/bin/xfce-session) and labwc + foot + fuzzel + swaybg (/bin/labwc-desktop.sh).
+  # (/bin/xfce-session, XFCE_AUTOSTART: /bin/xfce-autostart.sh) and labwc + foot + fuzzel +
+  # swaybg (/bin/labwc-desktop.sh).
   - name: dbus
     use: [rootfs]
   - name: gtk3_wayland

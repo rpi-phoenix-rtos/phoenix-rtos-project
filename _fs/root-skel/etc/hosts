@@ -1,0 +1,5 @@
+# Static host table, read by getaddrinfo()/gethostbyname() before any name server.
+# The machine's own name (/etc/hostname) resolves to 127.0.1.1 without an entry here;
+# list it only to give it another address.
+127.0.0.1	localhost localhost.localdomain
+::1	localhost ip6-localhost ip6-loopback

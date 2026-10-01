@@ -222,3 +222,10 @@ ports:
   # document /usr/share/doc/phoenix/sample.pdf.
   - name: atril_wayland
     use: [rootfs]
+  # The browser's network and format libraries (coordination repo docs/browser/PLAN.md, B0):
+  # libsoup 3.6 + glib-networking (OpenSSL) + libpsl + nghttp2 + brotli, woff2, libwebp,
+  # libxml2, libxslt, static, in the port's private prefix (nothing else links them yet).
+  # USE smoke ships /usr/bin/soup-smoke, the B0 check: HTTPS + HTTP/2 GETs over the
+  # statically registered OpenSSL TLS backend, and a round trip through each format library.
+  - name: webkit_deps
+    use: [rootfs, smoke]

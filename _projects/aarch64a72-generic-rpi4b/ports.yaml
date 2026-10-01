@@ -222,3 +222,11 @@ ports:
   # document /usr/share/doc/phoenix/sample.pdf.
   - name: atril_wayland
     use: [rootfs]
+  # The web browser's dependencies (coordination repo docs/browser/PLAN.md, B0), listed so
+  # they build in the image before anything depends= on them.
+  # ICU 78.3: static libicuuc/libicui18n/libicuio + libicudata with the data linked in,
+  # filtered to 25 languages (icu/data-filter.json), and the Pi smoke /usr/bin/icu-smoke
+  # (prints ICUCHK lines). harfbuzz_icu adds libharfbuzz-icu (hb-icu) beside the harfbuzz
+  # port's libharfbuzz.a, which it leaves unchanged.
+  - name: icu
+  - name: harfbuzz_icu

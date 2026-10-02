@@ -244,5 +244,7 @@ ports:
   # Its FIRST build is ~2 h at -j8 (~8500 ninja steps). Its build directory,
   # _build/<target>/webkit_wpe-build, survives the port's cleans and gets its inputs by content,
   # so later builds redo only what changed (a dependency rebuilt to the same headers: a relink).
+  # jit: JavaScriptCore's Baseline/DFG/FTL tiers (B9); video: <video>/<audio> over FFmpeg, HEVC
+  # on the rpivid block (B8); webgl: WebGL through ANGLE on GLES 3.1, per run with --webgl (B7).
   - name: webkit_wpe
-    use: [rootfs, checks]
+    use: [rootfs, checks, jit, video, webgl]

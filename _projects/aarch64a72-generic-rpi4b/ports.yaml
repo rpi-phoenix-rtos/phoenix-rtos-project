@@ -237,3 +237,12 @@ ports:
   # statically registered OpenSSL TLS backend, and a round trip through each format library.
   - name: webkit_deps
     use: [rootfs, smoke]
+  # The web browser (coordination repo docs/browser/PLAN.md, B6): WPE WebKit 2.54 as ONE static
+  # multi-call program, /usr/bin/wpe-browser (UI + web + network process), its injected bundle,
+  # /bin/browser and the XFCE menu entry "Web Browser" (Internet). USE checks: the Pi checks
+  # (/usr/share/wpe-browser/b4.html, b6.sh, a probe web process extension).
+  # Its FIRST build is ~2 h at -j8 (~8500 ninja steps). Its build directory,
+  # _build/<target>/webkit_wpe-build, survives the port's cleans and gets its inputs by content,
+  # so later builds redo only what changed (a dependency rebuilt to the same headers: a relink).
+  - name: webkit_wpe
+    use: [rootfs, checks]

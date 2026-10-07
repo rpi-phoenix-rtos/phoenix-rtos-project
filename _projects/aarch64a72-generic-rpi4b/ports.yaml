@@ -247,4 +247,4 @@ ports:
   # jit: JavaScriptCore's Baseline/DFG/FTL tiers (B9); video: <video>/<audio> over FFmpeg, HEVC
   # on the rpivid block (B8); webgl: WebGL through ANGLE on GLES 3.1, per run with --webgl (B7).
   - name: webkit_wpe
-    use: [rootfs, checks, jit, video, webgl]
+    use: [rootfs, checks, jit, video, webgl, mse]

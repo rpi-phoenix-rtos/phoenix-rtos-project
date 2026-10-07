@@ -248,3 +248,10 @@ ports:
   # on the rpivid block (B8); webgl: WebGL through ANGLE on GLES 3.1, per run with --webgl (B7).
   - name: webkit_wpe
     use: [rootfs, checks, jit, video, webgl, mse]
+  # The desktop browser (coordination repo docs/browser/B10-WEBKITGTK.md): WebKitGTK 2.54 (GTK 3,
+  # Wayland) as ONE static multi-call program, /usr/bin/webkit-browser, with tabs and downloads
+  # (WebKit's MiniBrowser/gtk window) and the XFCE menu entry "WebKit Browser" (Internet). It
+  # shares webkit_wpe's patches; its first build is as long as webkit_wpe's (~2900 objects, no
+  # ccache sharing between the two), in _build/<target>/webkit_gtk-build.
+  - name: webkit_gtk
+    use: [rootfs, jit, video, webgl, mse]

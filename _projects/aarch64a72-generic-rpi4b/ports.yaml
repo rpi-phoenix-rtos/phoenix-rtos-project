@@ -252,6 +252,7 @@ ports:
   # Wayland) as ONE static multi-call program, /usr/bin/webkit-browser, with tabs and downloads
   # (WebKit's MiniBrowser/gtk window) and the XFCE menu entry "WebKit Browser" (Internet). It
   # shares webkit_wpe's patches; its first build is as long as webkit_wpe's (~2900 objects, no
-  # ccache sharing between the two), in _build/<target>/webkit_gtk-build.
+  # ccache sharing between the two), in _build/<target>/webkit_gtk-build. USE checks: the B10
+  # gate page /usr/share/webkit-browser/checks/b10.html.
   - name: webkit_gtk
-    use: [rootfs, jit, video, webgl, mse]
+    use: [rootfs, checks, jit, video, webgl, mse]

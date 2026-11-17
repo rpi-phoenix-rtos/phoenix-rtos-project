@@ -19,32 +19,34 @@ export PSH_DEFUSRPWDHASH="0B1ANiYi45IhxkfmUW155/GBd4IRE="
 # Platform dependent parameters
 #
 export SIZE_PAGE=$((0x1000))
-ADDR_DDR=$((0x80000000))
-
 
 #
 # Project specific build
 #
 export BOOT_DEVICE="flash0"
 export MAGIC_USER_SCRIPT="dabaabad"
+b_set_default_path "SYSPAGE_SCRIPT" "kernel.syspage.yaml" # used if not booting from PLO
+# separate RAM image (eg. running psd) if set, otherwise the same as for NAND
+SYSPAGE_SCRIPT_RAM=""
+# nvm.yaml partition names
+KERNEL_PART="kernel"
+ROOTFS_PART="rootfs"
 
 # TODO: move to nvm.yaml
-ERASE_SIZE=$((64 * 4096))         # Rootfs disk erase block size (in bytes)
-
+ERASE_SIZE=$((64 * 4096)) # Rootfs disk erase block size (in bytes)
 
 b_build_project() {
 	b_log "Building user applications"
 	make -C "_user" all install
 }
 
-
 b_build_target() {
 	b_log "Building $TARGET project"
-	image_builder.py script --nvm "$NVM_CONFIG" --script "$PLO_SCRIPT_PREINIT" --out script.plo
 
 	if [ "$KERNEL_PLO_BOOT" = "y" ]; then
 		b_log "Building PLO"
 
+		image_builder.py script --nvm "$NVM_CONFIG" --script "$PLO_SCRIPT_PREINIT" --out script.plo
 		RAM_SCRIPT=1 image_builder.py script --nvm "$NVM_CONFIG" --script "$PLO_SCRIPT_PREINIT" --out script-ram.plo
 		make -C plo all
 
@@ -53,30 +55,6 @@ b_build_target() {
 	fi
 }
 
-
-# Temporary solution to omit phoenix-rtos-loader
-b_syspage_gen() {
-	img="$1"
-	uscript="$2"
-
-	fn="${PREFIX_PROG}phoenix-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.elf"
-	vectors=$(${CROSS}readelf -s "$fn" | awk '/init_vectors/ { printf("0x%s", $2) }')
-	syspage=$(${CROSS}readelf -s "$fn" | awk '/syspage_data/ { printf("0x%s", $2) }')
-	plugin=$(${CROSS}readelf -s "$fn" | awk '/plugin_ivt/ { printf("0x%s", $2) }')
-
-	addr=$((syspage-vectors))
-	sz=$((plugin-syspage))
-
-	# TODO: move the functionality to the image_builder?
-	"$PREFIX_BOOT/syspagen" \
-		-a 32\
-		-s "$ADDR_DDR:$addr:$sz" \
-		-p "$PLO_SCRIPT_DIR/script.plo" \
-		-u "$uscript" \
-		-i "$img"
-}
-
-
 b_image_target() {
 	b_log "Creating image from $PREFIX_ROOTFS"
 
@@ -84,30 +62,20 @@ b_image_target() {
 		b_log "Image will boot from PLO."
 
 		b_log "FLASH image"
-		image_builder.py -v partition --nvm "$NVM_CONFIG" --name kernel --script "$PLO_SCRIPT_USER"
+		image_builder.py -v partition --nvm "$NVM_CONFIG" --name "$KERNEL_PART" --script "$PLO_SCRIPT_USER"
 	else
-		#FIXME: this code path hasn't yet been moved to image_builder
+		b_log "Image will boot without PLO."
 
-		# Parsed by syspagen for map and console commands.
-		b_mkscript_preinit
+		${CROSS}objcopy "${PREFIX_PROG_STRIPPED}${KERNEL_ELF}" -O binary "${PREFIX_PROG_STRIPPED}${KERNEL_ELF/.elf/.bin}"
+		image_builder.py -v kernel-image --nvm "$NVM_CONFIG" --script "$SYSPAGE_SCRIPT" --kernel-elf "${PREFIX_PROG}${KERNEL_ELF}" --name "$KERNEL_PART"
+		cp -a "$PREFIX_BOOT/part_${KERNEL_PART}.img" "$PREFIX_BOOT/phoenix-kernel.img"
 
-		# Build production image
-		b_log "RAM Image"
-
-		#TODO: create `kernel` partition image without the script using image_builder
-		b_kernel_image "$PREFIX_BOOT/phoenix.img"
-		b_syspage_gen "$PREFIX_BOOT/phoenix.img" "$PLO_SCRIPT_DIR/$NAME_USER_SCRIPT"
-
-		b_log "FLASH Image"
-		# This is a workaround for target not using PLO.
-		# As plo is not used user script is used only to:
-		#    - upload executable binary file instead of elf to the board(kernelimg),
-		#    - upload required apps(app).
-		#TODO: create `kernel` partition image without the script using image_builder
-		b_mkscript_user "${PRIMARY_SCRIPT[@]}"
-		b_kernel_image "$PREFIX_BOOT/phoenix-kernel.img"
-		b_syspage_gen "$PREFIX_BOOT/phoenix-kernel.img" "$PLO_SCRIPT_DIR/$NAME_USER_SCRIPT"
-		cp -a "$PREFIX_BOOT/phoenix-kernel.img" "$PREFIX_BOOT/part_kernel.img"
+		# RAM image (imx6ull-ram.sdp), by default the same as for NAND (imx6ull-flash.sdp)
+		if [ -n "$SYSPAGE_SCRIPT_RAM" ]; then
+			image_builder.py -v kernel-image --nvm "$NVM_CONFIG" --script "$SYSPAGE_SCRIPT_RAM" --kernel-elf "${PREFIX_PROG}${KERNEL_ELF}" --out phoenix.img
+		else
+			cp -a "$PREFIX_BOOT/part_${KERNEL_PART}.img" "$PREFIX_BOOT/phoenix.img"
+		fi
 	fi
 
 	b_log "Creating rootfs"
@@ -122,15 +90,18 @@ b_image_target() {
 
 	mkfs.jffs2 -U "${CLEANMARKER_ARG[@]}" -l -m none -e $ERASE_SIZE -s $SIZE_PAGE -r "$PREFIX_ROOTFS"/ -o "$ROOTFS"
 
-	if sumtool "${CLEANMARKER_ARG[@]}" -e $ERASE_SIZE -l -i "$ROOTFS" -o "$ROOTFS.tmp" 2> /dev/null; then
+	if sumtool "${CLEANMARKER_ARG[@]}" -e $ERASE_SIZE -l -i "$ROOTFS" -o "$ROOTFS.tmp" 2>/dev/null; then
 		echo "JFFS2 Summary nodes created"
 		mv "$ROOTFS.tmp" "$ROOTFS"
 	fi
 
-	FS_SZ=$(image_builder.py query --nvm "$NVM_CONFIG" '{{ nvm.flash0.rootfs.size }}')
+	FS_SZ=$(image_builder.py query --nvm "$NVM_CONFIG" "{{ nvm.flash0.${ROOTFS_PART}.size }}")
 	sz=$(du -k "$ROOTFS" | awk '{ print $1 }')
 	echo "rootfs size: ${sz} kB / $((FS_SZ / 1024)) kB"
 	[ "$sz" -gt "$((FS_SZ / 1024))" ] && b_die "rootfs size exceeds the target partition!"
+
+	# flash0 layout starts with plo
+	[ "$KERNEL_PLO_BOOT" = "y" ] || return 0
 
 	image_builder.py -v disk --nvm "$NVM_CONFIG" --part "rootfs=$ROOTFS" --part "plo=${PREFIX_PROG_STRIPPED}plo-${TARGET_FAMILY}-${TARGET_SUBFAMILY}.img"
 
@@ -142,6 +113,5 @@ b_build_test_target() {
 	b_log "Build and install tests in the phoenix-rtos filesystem"
 	make -C "phoenix-rtos-tests" all install
 }
-
 
 export -f b_build_target

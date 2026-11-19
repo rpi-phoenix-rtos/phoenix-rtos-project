@@ -3,6 +3,11 @@ size: 0x1000
 is_relative: True
 
 contents:
+  # Debug only (learnings L33): fill free RAM with a seeded pattern before anything is loaded,
+  # to provoke reads of uninitialised memory. Needs a plo built with PLO_DEBUG_POISON=y and
+  # PLO_POISON_ARGS="<seed> [<zero-start> <zero-count>]"; absent from normal builds.
+  - if: "{{ env.PLO_DEBUG_POISON | default('n') == 'y' and env.PLO_POISON_ARGS | default('') != '' }}"
+    str: "poison {{ env.PLO_POISON_ARGS | default('') }}"
   - kernel {{ env.BOOT_DEVICE }}
   - if: '{{ env.RPI4B_HAVE_DTB | default(false) }}'
     str: blob {{ env.BOOT_DEVICE }} /etc/system.dtb ddr

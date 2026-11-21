@@ -32,6 +32,8 @@
 
 #define PL011_TTY_BASE  0xfe201000u
 #define PL011_TTY_CLOCK 48000000u
+/* UART0 receive interrupt: GIC SPI 121 (shared by the BCM2711 PL011s), numbered SPI + 32 */
+#define PL011_TTY_IRQ   (32u + 121u)
 #define PL011_TTY_EARLY_VADDR 0xffffffffffe00000ull
 #define PL011_TTY_KBD_PATH "/dev/kbd0"
 #define PCIE_BCM2711_HOST_BASE 0xfd500000u
